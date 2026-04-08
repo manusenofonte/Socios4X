@@ -7,9 +7,9 @@ namespace Socios.Infrastructure.Repositories;
 
 public class FAQRepository : IFAQRepository
 {
-    private readonly SociosDevDbContext _context;
+    private readonly ClubDbContext _context;
 
-    public FAQRepository(SociosDevDbContext context)
+    public FAQRepository(ClubDbContext context)
     {
         _context = context;
     }
@@ -19,15 +19,13 @@ public class FAQRepository : IFAQRepository
         if (string.IsNullOrWhiteSpace(query))
             return Enumerable.Empty<FrequentlyQuestion>();
 
-        // Lógica de búsqueda simple inicial. 
-        // En producción, evaluaremos habilitar Full-Text Search en SQL Server si el volumen crece.
         var lowerQuery = query.ToLower();
 
         return await _context.FrequentlyQuestions
-            // Filtramos por palabras clave o coincidencias en la pregunta
+            .AsNoTracking()
             .Where(f => (f.Question != null && f.Question.ToLower().Contains(lowerQuery)) ||
                         (f.Keywords != null && f.Keywords.ToLower().Contains(lowerQuery)))
-            .Take(5) // Límite estricto: prevenimos desbordar la ventana de contexto (tokens) del LLM
+            .Take(5)
             .ToListAsync(cancellationToken);
     }
 }

@@ -1,19 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<NoWarn>$(NoWarn);SKEXP0001;CS0618</NoWarn>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.7" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0" />
 
-  <ItemGroup>
-    <ProjectReference Include="..\Socios.Application\Socios.Application.csproj" />
-    <ProjectReference Include="..\Socios.Infrastructure\Socios.Infrastructure.csproj" />
-  </ItemGroup>
+		<PackageReference Include="Microsoft.SemanticKernel" Version="1.74.0" />
+		<PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.74.0" />
+		<PackageReference Include="Microsoft.SemanticKernel.Connectors.Qdrant" Version="1.74.0-preview" />
+		<PackageReference Include="Microsoft.SemanticKernel.Plugins.Memory" Version="1.74.0-alpha" />
+
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Socios.Application\Socios.Application.csproj" />
+		<ProjectReference Include="..\Socios.Infrastructure\Socios.Infrastructure.csproj" />
+	</ItemGroup>
 
 </Project>

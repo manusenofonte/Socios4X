@@ -5,7 +5,8 @@ using Socios.Application.Interfaces;
 namespace Socios.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")] // La ruta será /api/assistant
+[Route("api/[controller]")] 
+// La ruta será /api/assistant
 public class AssistantController : ControllerBase
 {
     private readonly IVirtualAssistantService _assistantService;

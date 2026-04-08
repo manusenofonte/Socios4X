@@ -1,42 +1,62 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.SemanticKernel;
-using Socios.Infrastructure.Persistence;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Socios.Application.Interfaces;
+using Socios.Infrastructure.Persistence;
+using Socios.Infrastructure.Repositories;
 
 namespace Socios.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment) // Recibimos el environment para los checks de desarrollo
     {
-        // 1. Persistencia Tradicional (SQL Server)
-        services.AddDbContext<SociosDevDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("SociosDevConnection")));
-
-        services.AddDbContext<ClubDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultClubConnection")));
-
-        // 2. Inteligencia Artificial (Semantic Kernel)
-        var aiConfig = configuration.GetSection("AI");
-
-        // Usamos null-coalescing para evitar caídas si el string está vacío en desarrollo
-        var openAiKey = aiConfig["OpenAI:ApiKey"] ?? "TEST_KEY";
-        var chatModel = aiConfig["OpenAI:ChatModel"] ?? "gpt-4o-mini";
-        var embeddingModel = aiConfig["OpenAI:EmbeddingModel"] ?? "text-embedding-3-small";
-
-        // Registramos el Kernel y los servicios de OpenAI
-        services.AddKernel()
-            .AddOpenAIChatCompletion(chatModel, openAiKey)
-            .AddOpenAITextEmbeddingGeneration(embeddingModel, openAiKey);
-
-        // La configuración específica del cliente de Qdrant la inyectaremos 
-        // cuando armemos el repositorio vectorial.
-
-        // 3. Repositorios
-        services.AddScoped<IFAQRepository, Socios.Infrastructure.Repositories.FAQRepository>();
+        AddDatabase(services, configuration, environment);
+        AddRepositories(services);
 
         return services;
+    }
+
+    private static void AddDatabase(
+        IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
+    {
+        var connectionString = configuration.GetConnectionString("SociosDevConnection")
+            ?? throw new InvalidOperationException("Connection string 'SociosDevConnection' not found.");
+
+        // Usamos Pool para mejor performance
+        services.AddDbContextPool<ClubDbContext>((serviceProvider, options) =>
+        {
+            var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+
+            options.UseSqlServer(connectionString, sql =>
+            {
+                // Resiliencia: Reintentos automáticos ante fallos transitorios
+                sql.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(10),
+                    errorNumbersToAdd: null);
+            });
+
+            options.UseLoggerFactory(loggerFactory);
+
+            if (environment.IsDevelopment())
+            {
+                options.EnableSensitiveDataLogging();
+                options.EnableDetailedErrors();
+            }
+        });
+    }
+
+    private static void AddRepositories(IServiceCollection services)
+    {
+        // Registro del repositorio de FAQs
+        services.AddScoped<IFAQRepository, FAQRepository>();
     }
 }

@@ -58,7 +58,7 @@ public class VirtualAssistantService : IVirtualAssistantService
         Pregunta del usuario: {{$query}}
         ";
 
-        /* 5. Configurar los argumentos y ejecutar Semantic Kernel
+        /* 5. Configurar los argumentos y ejecutar Semantic Kernel */
         var arguments = new KernelArguments
         {
             { "context", contextBuilder.ToString() },
@@ -67,7 +67,6 @@ public class VirtualAssistantService : IVirtualAssistantService
 
         var result = await _kernel.InvokePromptAsync(prompt, arguments, cancellationToken: cancellationToken);
 
-        return result.ToString();*/
-        return contextBuilder.ToString();
+        return result.ToString();
     }
 }
