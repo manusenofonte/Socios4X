@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Qdrant.Client;
 using Socios.Application.Interfaces;
 using Socios.Infrastructure.Persistence;
 using Socios.Infrastructure.Repositories;
@@ -17,7 +18,7 @@ public static class DependencyInjection
         IHostEnvironment environment) // Recibimos el environment para los checks de desarrollo
     {
         AddDatabase(services, configuration, environment);
-        AddRepositories(services);
+        AddRepositories(services, configuration);
 
         return services;
     }
@@ -54,9 +55,21 @@ public static class DependencyInjection
         });
     }
 
-    private static void AddRepositories(IServiceCollection services)
+    private static void AddRepositories(IServiceCollection services, IConfiguration configuration)
     {
         // Registro del repositorio de FAQs
         services.AddScoped<IFAQRepository, FAQRepository>();
+
+        var qdrantEndpoint = configuration["AI:Qdrant:Endpoint"];
+        if (string.IsNullOrWhiteSpace(qdrantEndpoint))
+        {
+            // Sin Qdrant configurado, el asistente sigue funcionando solo con FAQs
+            services.AddScoped<IVectorKnowledgeRepository, NullVectorKnowledgeRepository>();
+            return;
+        }
+
+        var qdrantApiKey = configuration["AI:Qdrant:ApiKey"];
+        services.AddSingleton(_ => new QdrantClient(new Uri(qdrantEndpoint).Host, https: true, apiKey: qdrantApiKey));
+        services.AddScoped<IVectorKnowledgeRepository, QdrantVectorKnowledgeRepository>();
     }
 }

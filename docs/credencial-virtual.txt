@@ -1,0 +1,12 @@
+Credencial Virtual - Funcionalidades para el socio
+
+- Permite al socio registrarse con su correo electrónico, número de socio y documento; el sistema verifica la veracidad de los datos antes de habilitar el registro. No es necesaria la intervención de la Secretaría del club para registrarse.
+- Permite al socio registrado agregar a su grupo familiar.
+- El socio y su grupo familiar pueden acceder a los pagos realizados.
+- El socio y su grupo familiar pueden acceder a la deuda contraída.
+- El socio y su grupo familiar pueden acceder a sus credenciales virtuales, con la posibilidad de imprimirlas o descargarlas.
+- La credencial virtual contiene un código QR que, al escanearlo, permite verificar el estado del socio.
+- La credencial virtual muestra los datos y la foto del socio.
+- "Mi QR" es un código QR grupal que permite verificar el estado de todos los integrantes del grupo familiar al escanearlo.
+- El socio y su grupo familiar pueden descargar los recibos en PDF para imprimirlos.
+- Funciona desde cualquier teléfono móvil con conexión a internet, sin necesidad de descargar ninguna aplicación: se accede mediante un link o escaneando un código QR.

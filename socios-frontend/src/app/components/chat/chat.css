@@ -65,7 +65,14 @@
   transition: color 0.3s ease;
 }
 
-.theme-toggle {
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.theme-toggle,
+.clear-chat-button {
   background: none;
   border: none;
   color: var(--color-texto-principal);
@@ -84,6 +91,11 @@
   .theme-toggle:hover {
     background-color: var(--color-btn-hover-bg);
     transform: scale(1.05) rotate(15deg);
+  }
+
+  .clear-chat-button:hover {
+    background-color: var(--color-btn-hover-bg);
+    transform: scale(1.05);
   }
 
 /* --- Área de Mensajes --- */
@@ -142,6 +154,40 @@
   overflow-wrap: break-word;
 }
 
+.message-text :first-child {
+  margin-top: 0;
+}
+
+.message-text :last-child {
+  margin-bottom: 0;
+}
+
+.message-text p {
+  margin: 0.6em 0;
+}
+
+.message-text ul,
+.message-text ol {
+  margin: 0.6em 0;
+  padding-left: 1.4em;
+}
+
+.message-text li {
+  margin-bottom: 0.3em;
+}
+
+.message-text code {
+  background-color: rgba(128, 128, 128, 0.2);
+  padding: 0.15em 0.4em;
+  border-radius: 0.4em;
+  font-size: 0.9em;
+}
+
+.message-text a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 /* Mensajes IA (Izquierda) */
 .ia-row {
   justify-content: flex-start;
@@ -162,6 +208,81 @@
     background-color: var(--color-burbuja-usuario);
     color: var(--color-texto-burbuja-usuario);
     border-radius: 1.2rem 1.2rem 0.3rem 1.2rem;
+  }
+
+/* --- Botón copiar respuesta --- */
+.copy-button {
+  background: none;
+  border: none;
+  color: var(--color-texto-secundario);
+  cursor: pointer;
+  padding: 0.6rem;
+  width: 2.6rem;
+  height: 2.6rem;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  align-self: flex-end;
+  transition: all 0.2s ease;
+}
+
+  .copy-button:hover {
+    background-color: var(--color-btn-hover-bg);
+    color: var(--color-texto-principal);
+  }
+
+/* --- Preguntas sugeridas --- */
+.suggestions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  padding-left: 4.2rem;
+}
+
+.suggestion-chip {
+  background-color: var(--color-fondo-pagina);
+  border: 1px solid var(--color-bordes);
+  color: var(--color-texto-principal);
+  border-radius: 2rem;
+  padding: 0.8rem 1.4rem;
+  font-size: 1.3rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+  .suggestion-chip:hover {
+    background-color: var(--color-btn-hover-bg);
+    border-color: transparent;
+  }
+
+/* --- Botón adjuntar archivo --- */
+.attach-button {
+  background: none;
+  border: none;
+  color: var(--color-texto-secundario);
+  cursor: pointer;
+  padding: 1rem;
+  width: 4.5rem;
+  height: 4.5rem;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+  .attach-button:hover {
+    background-color: var(--color-btn-hover-bg);
+    color: var(--color-texto-principal);
+  }
+
+  .attach-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
 /* --- Input Area --- */

@@ -1,5 +1,6 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Memory;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Socios.Application;
 using Socios.Infrastructure;
@@ -14,66 +15,91 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // ==============================
+// RATE LIMITING (por IP)
+// ==============================
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("AssistantPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 15,
+                QueueLimit = 0
+            }));
+
+    options.AddPolicy("UploadPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 5,
+                QueueLimit = 0
+            }));
+});
+
+// ==============================
+// CORS (frontend Angular)
+// ==============================
+const string FrontendCorsPolicy = "FrontendCors";
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+// ==============================
 // CAPAS (Clean Architecture)
 // ==============================
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 
 // ==============================
-// CONFIGURACIÓN IA
+// CONFIGURACIÓN IA (OpenAI)
 // ==============================
-
-// Configs tipadas
-var grokConfig = builder.Configuration.GetSection("AI:Grok");
 var openAiConfig = builder.Configuration.GetSection("AI:OpenAI");
-
-// Validación (nivel pro)
-var grokApiKey = grokConfig["ApiKey"] ?? throw new Exception("Falta Grok API Key");
-var openAiApiKey = openAiConfig["ApiKey"] ?? throw new Exception("Falta OpenAI API Key");
-
-// ==============================
-// 1. CHAT (GROK)
-// ==============================
-
-builder.Services.AddHttpClient("Grok", client =>
-{
-    client.BaseAddress = new Uri(grokConfig["Endpoint"] ?? "https://api.x.ai/v1");
-});
+var openAiApiKey = openAiConfig["ApiKey"] ?? throw new InvalidOperationException("Falta configurar AI:OpenAI:ApiKey.");
+var chatModel = openAiConfig["ChatModel"] ?? "gpt-5-nano";
+var embeddingModel = openAiConfig["EmbeddingModel"] ?? "text-embedding-3-small";
 
 builder.Services.AddKernel()
     .AddOpenAIChatCompletion(
-        modelId: grokConfig["ChatModel"] ?? "grok-beta",
-        apiKey: grokApiKey
+        modelId: chatModel,
+        apiKey: openAiApiKey
+    )
+    .AddOpenAITextEmbeddingGeneration(
+        modelId: embeddingModel,
+        apiKey: openAiApiKey
     );
-
-// ==============================
-// 2. MEMORIA SEMÁNTICA (SIN QDRANT)
-// ==============================
-
-builder.Services.AddSingleton<ISemanticTextMemory>(sp =>
-{
-    return new MemoryBuilder()
-        .WithOpenAITextEmbeddingGeneration(
-            modelId: "text-embedding-3-small",
-            apiKey: openAiApiKey
-        )
-        .Build();
-});
 
 // ==============================
 // BUILD APP
 // ==============================
 var app = builder.Build();
 
-// Forzamos Swagger afuera del IF para que lo veas siempre mientras probamos
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+if (app.Environment.IsDevelopment())
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Socios API V1");
-    c.RoutePrefix = "swagger";
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Socios API V1");
+        c.RoutePrefix = "swagger";
+    });
+}
 
 app.UseHttpsRedirection();
+app.UseCors(FrontendCorsPolicy);
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
 

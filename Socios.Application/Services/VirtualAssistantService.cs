@@ -32,10 +32,8 @@ public class VirtualAssistantService : IVirtualAssistantService
         var faqs = await _faqRepository
             .SearchRelevantFAQsAsync(userQuery, cancellationToken);
 
-        // 2. Búsqueda en repositorio vectorial
-        var documentChunks = clubId.HasValue
-            ? await _vectorRepository.SearchAsync(userQuery, clubId.Value, cancellationToken)
-            : Enumerable.Empty<KnowledgeChunk>();
+        // 2. Búsqueda en repositorio vectorial (clubId null = sin filtrar por club)
+        var documentChunks = await _vectorRepository.SearchAsync(userQuery, clubId, cancellationToken);
 
         // 3. Normalización de FAQs como chunks
         var faqChunks = faqs.Select(f => new KnowledgeChunk
@@ -78,13 +76,15 @@ Tu tarea es responder exclusivamente utilizando el contexto proporcionado.
 
 Reglas:
 - Si la respuesta no se encuentra explícitamente en el contexto, responde exactamente:
-  'Lo siento, no tengo información sobre ese tema en mis registros actuales.'
+  'Lo siento, no tengo información sobre ese tema. Te recomiendo contactarte con la administración del club o 4x.'
 - No inventar información.
 - No utilizar conocimiento externo al contexto.
 - Priorizar precisión sobre cantidad.
 
 Formato:
 - Respuesta breve y profesional.
+- Usa Markdown: negrita para lo importante, listas para enumeraciones.
+- Si la respuesta es una secuencia de pasos, usa una lista numerada con un paso por línea (nunca todos los pasos seguidos en el mismo párrafo).
 
 Contexto:
 {{$context}}

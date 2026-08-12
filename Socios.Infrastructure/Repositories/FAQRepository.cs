@@ -28,4 +28,14 @@ public class FAQRepository : IFAQRepository
             .Take(5)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IEnumerable<FrequentlyQuestion>> GetMostFrequentAsync(int count, CancellationToken cancellationToken = default)
+    {
+        return await _context.FrequentlyQuestions
+            .AsNoTracking()
+            .Where(f => f.Question != null)
+            .OrderByDescending(f => f.Frequently)
+            .Take(count)
+            .ToListAsync(cancellationToken);
+    }
 }

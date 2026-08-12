@@ -1,0 +1,3 @@
+Pagos con Red Link
+
+El club puede recibir e integrar pagos realizados a través del sistema de Red Link. La recaudación importada desde Red Link se registra automáticamente en el Sistema de Socios Web, reflejándose en la deuda y los pagos del socio.

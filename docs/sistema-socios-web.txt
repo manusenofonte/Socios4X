@@ -1,0 +1,18 @@
+Sistema de Gestión de Socios - Funcionalidades
+
+El sistema es una aplicación web a la que pueden acceder el dueño del club, los empleados o los socios, desde cualquier computadora y en cualquier momento del día.
+
+- Administración de socios: alta, modificación, baja y búsqueda por nombre, DNI o número de socio. Permite exportar el listado a Excel o PDF, o imprimir la ficha de alta del socio.
+- Administración de tipos de socio, cada uno con su valor de cuota asociado.
+- Gestión de cobradores: alta, modificación, baja y búsqueda por nombre, DNI o número de cobrador. Cada socio tiene un cobrador asignado.
+- Liquidaciones: genera las cuotas mensualmente, permite reliquidar un período ante modificaciones, y admite un cierre definitivo de la liquidación para evitar inconsistencias.
+- Administración de pagos y generación de recibos:
+  - La secretaría del club puede registrar pagos desde el sistema.
+  - Los cobradores pueden registrar pagos y consultar la deuda de los socios en tiempo real.
+  - Se puede imprimir un ticket de pago con código QR (compatible con impresora térmica de 80 columnas) o generarlo en PDF.
+- Manejo de distintos roles, cada uno con acceso a distintas partes del sistema.
+- Reportes disponibles: pagos (filtrado por fecha, cobrador y/o socio), deudas (por cantidad de cuotas adeudadas, por socio o por cobrador), liquidaciones, socios al día, altas y bajas de socios, socios por categoría, estadísticas por liquidación, y totales de recaudación mensual con gráfico comparativo. La mayoría se puede exportar a PDF o Excel.
+- El sistema admite pagos integrados con Red Link y el envío de avisos de cuota por correo electrónico.
+- Funciona en notebook, computadora de escritorio, tablet o celular, sin requerimientos especiales de hardware o software (se recomienda Google Chrome).
+
+Más información: preguntas frecuentes en https://demosocios.4x.com.ar/faq - información adicional en https://4x.com.ar/

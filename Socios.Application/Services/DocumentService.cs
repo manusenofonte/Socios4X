@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Socios.Application.Interfaces;
 using UglyToad.PdfPig;
 using System.Text;
@@ -6,37 +7,44 @@ namespace Socios.Application.Services;
 
 public class DocumentService : IDocumentService
 {
-    public async Task<bool> ProcessAndStoreDocumentAsync(string fileName, Stream fileStream, string contentType, CancellationToken cancellationToken = default)
+    private const int MaxChunkSize = 1000;
+
+    private readonly IVectorKnowledgeRepository _vectorRepository;
+    private readonly ILogger<DocumentService> _logger;
+
+    public DocumentService(IVectorKnowledgeRepository vectorRepository, ILogger<DocumentService> logger)
     {
+        _vectorRepository = vectorRepository;
+        _logger = logger;
+    }
+
+    public async Task<int> ProcessAndStoreDocumentAsync(string fileName, Stream fileStream, string contentType, int? clubId, CancellationToken cancellationToken = default)
+    {
+        if (contentType != "application/pdf" && contentType != "text/plain")
+            return 0;
+
         try
         {
-            string extractedText = string.Empty;
+            var extractedText = contentType == "application/pdf"
+                ? ExtractTextFromPdf(fileStream)
+                : await ExtractTextFromPlainTextAsync(fileStream, cancellationToken);
+            var chunks = ChunkText(extractedText);
 
-            // Por ahora solo soportamos PDF para armar el flujo base
-            if (contentType == "application/pdf")
-            {
-                extractedText = ExtractTextFromPdf(fileStream);
-            }
-            else
-            {
-                // Si envían otro formato, lo rechazamos por el momento
-                return false;
-            }
+            if (chunks.Count == 0)
+                return 0;
 
-            // Para probar hoy, solo imprimiremos en consola los primeros 500 caracteres
-            Console.WriteLine($"\n--- Texto extraído de {fileName} ---");
-            Console.WriteLine(extractedText.Substring(0, Math.Min(extractedText.Length, 500)) + "...\n");
+            await _vectorRepository.UpsertAsync(fileName, clubId, chunks, cancellationToken);
 
-            return await Task.FromResult(true);
+            return chunks.Count;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error procesando documento: {ex.Message}");
-            return await Task.FromResult(false);
+            _logger.LogError(ex, "Error procesando el documento {FileName}", fileName);
+            return 0;
         }
     }
 
-    private string ExtractTextFromPdf(Stream pdfStream)
+    private static string ExtractTextFromPdf(Stream pdfStream)
     {
         var textBuilder = new StringBuilder();
 
@@ -44,11 +52,51 @@ public class DocumentService : IDocumentService
         {
             foreach (var page in document.GetPages())
             {
-                // Ahora sacamos el texto directamente de la propiedad page.Text
                 textBuilder.AppendLine(page.Text);
             }
         }
 
         return textBuilder.ToString();
+    }
+
+    private static async Task<string> ExtractTextFromPlainTextAsync(Stream textStream, CancellationToken cancellationToken)
+    {
+        using var reader = new StreamReader(textStream);
+        return await reader.ReadToEndAsync(cancellationToken);
+    }
+
+    private static List<string> ChunkText(string text, int maxChunkSize = MaxChunkSize)
+    {
+        var chunks = new List<string>();
+        var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        var current = new StringBuilder();
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0)
+                continue;
+
+            if (current.Length > 0 && current.Length + trimmed.Length > maxChunkSize)
+            {
+                chunks.Add(current.ToString().Trim());
+                current.Clear();
+            }
+
+            // Una línea sola ya más larga que el tamaño máximo: la partimos directamente
+            if (trimmed.Length > maxChunkSize)
+            {
+                for (int i = 0; i < trimmed.Length; i += maxChunkSize)
+                    chunks.Add(trimmed.Substring(i, Math.Min(maxChunkSize, trimmed.Length - i)));
+                continue;
+            }
+
+            current.AppendLine(trimmed);
+        }
+
+        if (current.Length > 0)
+            chunks.Add(current.ToString().Trim());
+
+        return chunks;
     }
 }

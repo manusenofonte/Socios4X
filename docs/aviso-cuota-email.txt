@@ -1,0 +1,3 @@
+Aviso de cuota por correo electrónico
+
+En el proceso de liquidación mensual, el club puede enviar un correo electrónico a todos los socios avisando que ya está disponible el pago de la cuota.
