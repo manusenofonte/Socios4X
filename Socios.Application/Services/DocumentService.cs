@@ -48,7 +48,7 @@ public class DocumentService : IDocumentService
     {
         var textBuilder = new StringBuilder();
 
-        using (var document = PdfDocument.Open(pdfStream))
+        using (var document = PdfDocument.Open(pdfStream, new ParsingOptions { UseLenientParsing = true }))
         {
             foreach (var page in document.GetPages())
             {
