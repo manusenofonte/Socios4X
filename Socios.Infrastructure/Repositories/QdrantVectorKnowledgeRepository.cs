@@ -10,6 +10,11 @@ public class QdrantVectorKnowledgeRepository : IVectorKnowledgeRepository
     private const string CollectionName = "socios_knowledge";
     private const ulong VectorSize = 1536; // text-embedding-3-small
 
+    // Similitud coseno mínima para considerar un chunk relevante. Valor de partida a
+    // calibrar con documentos reales: por debajo de esto, se descarta antes de llegar
+    // al prompt en vez de confiar en que el modelo lo ignore.
+    private const float MinScoreThreshold = 0.35f;
+
     private readonly QdrantClient _client;
     private readonly ITextEmbeddingGenerationService _embeddingService;
 
@@ -45,6 +50,7 @@ public class QdrantVectorKnowledgeRepository : IVectorKnowledgeRepository
             embedding.ToArray(),
             filter: filter,
             limit: 5,
+            scoreThreshold: MinScoreThreshold,
             cancellationToken: cancellationToken);
 
         return results.Select(point => new KnowledgeChunk

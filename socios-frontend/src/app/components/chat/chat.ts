@@ -145,12 +145,15 @@ export class ChatComponent implements OnInit {
     input.value = '';
     if (!file) return;
 
+    const adminKey = window.prompt('Clave de administrador para cargar documentos:');
+    if (!adminKey) return;
+
     this.isUploading = true;
     this.messages.push({ text: `Adjunté "${file.name}"`, isUser: true });
     this.cdr.detectChanges();
     this.scrollToBottom();
 
-    this.documentUploadService.upload(file).subscribe({
+    this.documentUploadService.upload(file, adminKey).subscribe({
       next: (response) => {
         this.isUploading = false;
         this.messages.push({
@@ -160,12 +163,12 @@ export class ChatComponent implements OnInit {
         this.cdr.detectChanges();
         this.scrollToBottom();
       },
-      error: () => {
+      error: (err) => {
         this.isUploading = false;
-        this.messages.push({
-          text: `No pude procesar "${file.name}". Asegurate de que sea un PDF o un .txt.`,
-          isUser: false
-        });
+        const text = err.status === 401
+          ? 'Clave de administrador incorrecta.'
+          : `No pude procesar "${file.name}". Asegurate de que sea un PDF o un .txt.`;
+        this.messages.push({ text, isUser: false });
         this.cdr.detectChanges();
         this.scrollToBottom();
       }

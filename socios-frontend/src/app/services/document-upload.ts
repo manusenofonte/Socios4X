@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
@@ -14,12 +14,13 @@ export class DocumentUploadService {
 
   constructor(private http: HttpClient) {}
 
-  upload(file: File, clubId?: number): Observable<UploadResponse> {
+  upload(file: File, adminKey: string, clubId?: number): Observable<UploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
     if (clubId !== undefined) {
       formData.append('clubId', clubId.toString());
     }
-    return this.http.post<UploadResponse>(`${this.apiUrl}/upload`, formData);
+    const headers = new HttpHeaders({ 'X-Admin-Key': adminKey });
+    return this.http.post<UploadResponse>(`${this.apiUrl}/upload`, formData, { headers });
   }
 }

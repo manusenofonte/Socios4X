@@ -35,11 +35,11 @@ public class VirtualAssistantService : IVirtualAssistantService
         // 2. Búsqueda en repositorio vectorial (clubId null = sin filtrar por club)
         var documentChunks = await _vectorRepository.SearchAsync(userQuery, clubId, cancellationToken);
 
-        // 3. Normalización de FAQs como chunks
-        var faqChunks = faqs.Select(f => new KnowledgeChunk
+        // 3. Normalización de FAQs como chunks (score real de coincidencia, no fijo)
+        var faqChunks = faqs.Select(m => new KnowledgeChunk
         {
-            Text = $"Pregunta: {f.Question}\nRespuesta: {f.Answer}",
-            Score = 1.0,
+            Text = $"Pregunta: {m.Faq.Question}\nRespuesta: {m.Faq.Answer}",
+            Score = m.Score,
             Source = "FAQ"
         });
 

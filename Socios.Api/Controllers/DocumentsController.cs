@@ -10,18 +10,29 @@ namespace Socios.Api.Controllers;
 public class DocumentsController : ControllerBase
 {
     private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
+    private const string AdminKeyHeader = "X-Admin-Key";
 
     private readonly IDocumentService _documentService;
+    private readonly IConfiguration _configuration;
 
-    public DocumentsController(IDocumentService documentService)
+    public DocumentsController(IDocumentService documentService, IConfiguration configuration)
     {
         _documentService = documentService;
+        _configuration = configuration;
     }
 
     [HttpPost("upload")]
     [RequestSizeLimit(MaxFileSizeBytes)]
     public async Task<IActionResult> UploadDocument(IFormFile file, [FromForm] int? clubId, CancellationToken cancellationToken)
     {
+        var adminKey = _configuration["Admin:UploadKey"];
+        var providedKey = Request.Headers[AdminKeyHeader].ToString();
+
+        if (string.IsNullOrEmpty(adminKey) || providedKey != adminKey)
+        {
+            return Unauthorized("Se requiere una clave de administrador para cargar documentos.");
+        }
+
         if (file == null || file.Length == 0)
         {
             return BadRequest("No se proporcionó ningún archivo.");

@@ -23,14 +23,14 @@ public class FAQRepository : IFAQRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<FrequentlyQuestion>> SearchRelevantFAQsAsync(string query, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<FAQMatch>> SearchRelevantFAQsAsync(string query, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query))
-            return Enumerable.Empty<FrequentlyQuestion>();
+            return Enumerable.Empty<FAQMatch>();
 
         var queryWords = ExtractKeywords(query);
         if (queryWords.Count == 0)
-            return Enumerable.Empty<FrequentlyQuestion>();
+            return Enumerable.Empty<FAQMatch>();
 
         // Tabla chica (decenas de filas): traemos todo y puntuamos en memoria por palabras
         // compartidas, en vez de exigir coincidencia literal de la frase completa.
@@ -40,15 +40,19 @@ public class FAQRepository : IFAQRepository
             .ToListAsync(cancellationToken);
 
         return allFaqs
-            .Select(f => new
+            .Select(f =>
             {
-                Faq = f,
-                Score = ExtractKeywords($"{f.Question} {f.Keywords}").Count(queryWords.Contains)
+                var faqWords = ExtractKeywords($"{f.Question} {f.Keywords}");
+                var matched = faqWords.Count(queryWords.Contains);
+                // Score 0-1: proporción de palabras de la pregunta del usuario que aparecen
+                // en la FAQ, para que compita en igualdad de condiciones con el score de
+                // similitud de Qdrant (también 0-1) al mezclar ambas fuentes.
+                var score = (double)matched / queryWords.Count;
+                return new FAQMatch { Faq = f, Score = score };
             })
             .Where(x => x.Score > 0)
             .OrderByDescending(x => x.Score)
             .Take(5)
-            .Select(x => x.Faq)
             .ToList();
     }
 
