@@ -61,7 +61,7 @@ public class QdrantVectorKnowledgeRepository : IVectorKnowledgeRepository
         });
     }
 
-    public async Task UpsertAsync(string source, int? clubId, IEnumerable<string> textChunks, CancellationToken cancellationToken = default)
+    public async Task UpsertAsync(int documentId, string source, int? clubId, IEnumerable<string> textChunks, CancellationToken cancellationToken = default)
     {
         await EnsureCollectionExistsAsync(cancellationToken);
 
@@ -78,6 +78,7 @@ public class QdrantVectorKnowledgeRepository : IVectorKnowledgeRepository
             };
             point.Payload["text"] = chunk;
             point.Payload["source"] = source;
+            point.Payload["documentId"] = documentId;
             if (clubId.HasValue)
                 point.Payload["clubId"] = clubId.Value;
 
@@ -86,6 +87,44 @@ public class QdrantVectorKnowledgeRepository : IVectorKnowledgeRepository
 
         if (points.Count > 0)
             await _client.UpsertAsync(CollectionName, points, cancellationToken: cancellationToken);
+    }
+
+    public async Task DeleteByDocumentIdAsync(int documentId, CancellationToken cancellationToken = default)
+    {
+        if (!await _client.CollectionExistsAsync(CollectionName, cancellationToken))
+            return;
+
+        var filter = new Filter();
+        filter.Must.Add(new Condition
+        {
+            Field = new FieldCondition
+            {
+                Key = "documentId",
+                Match = new Match { Integer = documentId }
+            }
+        });
+
+        await _client.DeleteAsync(CollectionName, filter, cancellationToken: cancellationToken);
+    }
+
+    public async Task UpdateSourceAsync(int documentId, string newSource, CancellationToken cancellationToken = default)
+    {
+        if (!await _client.CollectionExistsAsync(CollectionName, cancellationToken))
+            return;
+
+        var filter = new Filter();
+        filter.Must.Add(new Condition
+        {
+            Field = new FieldCondition
+            {
+                Key = "documentId",
+                Match = new Match { Integer = documentId }
+            }
+        });
+
+        var payload = new Dictionary<string, Value> { ["source"] = newSource };
+
+        await _client.SetPayloadAsync(CollectionName, payload, filter, cancellationToken: cancellationToken);
     }
 
     private async Task EnsureCollectionExistsAsync(CancellationToken cancellationToken)
@@ -97,5 +136,10 @@ public class QdrantVectorKnowledgeRepository : IVectorKnowledgeRepository
             CollectionName,
             new VectorParams { Size = VectorSize, Distance = Distance.Cosine },
             cancellationToken: cancellationToken);
+
+        // Qdrant exige un índice explícito sobre un campo del payload antes de poder
+        // filtrar (búsqueda por club o delete por documento); sin esto tira InvalidArgument.
+        await _client.CreatePayloadIndexAsync(CollectionName, "documentId", PayloadSchemaType.Integer, cancellationToken: cancellationToken);
+        await _client.CreatePayloadIndexAsync(CollectionName, "clubId", PayloadSchemaType.Integer, cancellationToken: cancellationToken);
     }
 }

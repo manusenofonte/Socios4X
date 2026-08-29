@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Socios.Application.DTOs;
 using Socios.Application.Interfaces;
 
 namespace Socios.Api.Controllers;
@@ -25,10 +26,7 @@ public class DocumentsController : ControllerBase
     [RequestSizeLimit(MaxFileSizeBytes)]
     public async Task<IActionResult> UploadDocument(IFormFile file, [FromForm] int? clubId, CancellationToken cancellationToken)
     {
-        var adminKey = _configuration["Admin:UploadKey"];
-        var providedKey = Request.Headers[AdminKeyHeader].ToString();
-
-        if (string.IsNullOrEmpty(adminKey) || providedKey != adminKey)
+        if (!IsAdminKeyValid())
         {
             return Unauthorized("Se requiere una clave de administrador para cargar documentos.");
         }
@@ -53,5 +51,74 @@ public class DocumentsController : ControllerBase
         }
 
         return StatusCode(500, "Ocurrió un error al procesar el documento. Asegúrate de que sea un PDF o un .txt válido.");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetDocuments([FromQuery] int? clubId, CancellationToken cancellationToken)
+    {
+        if (!IsAdminKeyValid())
+        {
+            return Unauthorized("Se requiere una clave de administrador para ver los documentos.");
+        }
+
+        var documents = await _documentService.GetDocumentsAsync(clubId, cancellationToken);
+
+        var response = documents.Select(d => new DocumentResponse
+        {
+            Id = d.Id,
+            FileName = d.FileName,
+            FileType = d.FileType,
+            ClubId = d.ClubId,
+            ChunkCount = d.ChunkCount,
+            Status = d.Status,
+            UploadDate = d.UploadDate,
+            ProcessedDate = d.ProcessedDate
+        });
+
+        return Ok(response);
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> UpdateDocument(int id, [FromBody] UpdateDocumentRequest request, CancellationToken cancellationToken)
+    {
+        if (!IsAdminKeyValid())
+        {
+            return Unauthorized("Se requiere una clave de administrador para editar documentos.");
+        }
+
+        var updated = await _documentService.UpdateDocumentAsync(id, request.FileName, request.ClubId, cancellationToken);
+
+        if (!updated)
+        {
+            return NotFound(new { Error = "No se encontró el documento." });
+        }
+
+        return NoContent();
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> DeleteDocument(int id, CancellationToken cancellationToken)
+    {
+        if (!IsAdminKeyValid())
+        {
+            return Unauthorized("Se requiere una clave de administrador para borrar documentos.");
+        }
+
+        var deleted = await _documentService.DeleteDocumentAsync(id, cancellationToken);
+
+        if (!deleted)
+        {
+            return NotFound(new { Error = "No se encontró el documento." });
+        }
+
+        return NoContent();
+    }
+
+    private bool IsAdminKeyValid()
+    {
+        var adminKey = _configuration["Admin:UploadKey"];
+        var providedKey = Request.Headers[AdminKeyHeader].ToString();
+
+        return !string.IsNullOrEmpty(adminKey) && providedKey == adminKey;
     }
 }

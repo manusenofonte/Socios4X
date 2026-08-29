@@ -23,7 +23,7 @@ export class AssistantService {
     return this.http.post<AskQuestionResponse>(`${this.apiUrl}/ask`, { query, clubId });
   }
 
-  getSuggestions(count = 4): Observable<FaqSuggestion[]> {
+  getSuggestions(count = 10): Observable<FaqSuggestion[]> {
     return this.http.get<FaqSuggestion[]>(`${this.faqUrl}/suggestions?count=${count}`);
   }
 }

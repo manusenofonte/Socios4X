@@ -1,0 +1,173 @@
+<div class="admin-container">
+
+  @if (!isAuthenticated) {
+  <div class="auth-card">
+    <div class="auth-header">
+      <span class="auth-logo">4x</span>
+      <h1>Panel de administración</h1>
+      <p>Ingresá la clave de administrador para gestionar los documentos.</p>
+    </div>
+
+    <form class="auth-form" (ngSubmit)="submitKey()">
+      <input
+        type="password"
+        class="auth-input"
+        placeholder="Clave de administrador"
+        [(ngModel)]="keyInput"
+        name="adminKey"
+        [disabled]="verifying"
+        autofocus>
+
+      @if (authError) {
+      <p class="auth-error">{{ authError }}</p>
+      }
+
+      <button type="submit" class="auth-submit" [disabled]="verifying || !keyInput.trim()">
+        {{ verifying ? 'Verificando...' : 'Ingresar' }}
+      </button>
+    </form>
+
+    <a routerLink="/" class="back-link">← Volver al chat</a>
+  </div>
+  }
+
+  @if (isAuthenticated) {
+  <div class="admin-card">
+
+    <header class="admin-header">
+      <div class="header-left">
+        <a routerLink="/" class="back-icon" title="Volver al chat" aria-label="Volver al chat">←</a>
+        <div>
+          <h1>Documentos</h1>
+          <p class="subtitle">Base de conocimiento del asistente</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button class="icon-button" (click)="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema">
+          @if (!isDarkMode) {
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z" />
+          </svg>
+          } @else {
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278zM4.858 1.311A7.269 7.269 0 0 0 1.025 7.71c0 4.02 3.279 7.276 7.319 7.276a7.316 7.316 0 0 0 5.205-2.162c-.337.042-.68.063-1.029.063-4.61 0-8.343-3.714-8.343-8.29 0-1.167.242-2.278.681-3.286z" />
+          </svg>
+          }
+        </button>
+        <button class="logout-button" (click)="logout()">Salir</button>
+      </div>
+    </header>
+
+    <section class="upload-section">
+      <input type="file" #fileInput hidden accept=".pdf,.txt" (change)="onFileSelected($event)">
+
+      @if (!selectedFile) {
+      <button class="dropzone" (click)="triggerFileInput()" type="button">
+        <span class="dropzone-icon">＋</span>
+        <span>Subir un PDF o .txt</span>
+      </button>
+      } @else {
+      <div class="pending-upload">
+        <div class="pending-file">
+          <span class="pending-name">{{ selectedFile.name }}</span>
+          <span class="pending-size">{{ (selectedFile.size / 1024).toFixed(0) }} KB</span>
+        </div>
+        <input
+          type="number"
+          class="club-input"
+          placeholder="Club (opcional)"
+          [(ngModel)]="uploadClubId"
+          [disabled]="uploading">
+        <div class="pending-actions">
+          <button class="secondary-button" (click)="clearSelectedFile()" [disabled]="uploading">Cancelar</button>
+          <button class="primary-button" (click)="upload()" [disabled]="uploading">
+            {{ uploading ? 'Subiendo...' : 'Subir' }}
+          </button>
+        </div>
+      </div>
+      }
+
+      @if (uploadError) {
+      <p class="inline-error">{{ uploadError }}</p>
+      }
+    </section>
+
+    <section class="documents-section">
+      @if (actionError) {
+      <p class="inline-error">{{ actionError }}</p>
+      }
+
+      @if (loading) {
+      <p class="state-message">Cargando documentos...</p>
+      }
+
+      @if (!loading && loadError) {
+      <p class="state-message error">{{ loadError }}</p>
+      }
+
+      @if (!loading && !loadError && documents.length === 0) {
+      <p class="state-message">Todavía no hay documentos cargados.</p>
+      }
+
+      @if (!loading && documents.length > 0) {
+      <div class="documents-table">
+        <div class="table-row table-head">
+          <span class="col-name">Nombre</span>
+          <span class="col-club">Club</span>
+          <span class="col-chunks">Chunks</span>
+          <span class="col-status">Estado</span>
+          <span class="col-date">Subido</span>
+          <span class="col-actions"></span>
+        </div>
+
+        @for (doc of documents; track doc.id) {
+        <div class="table-row">
+          @if (editingId === doc.id) {
+          <input class="col-name edit-input" [(ngModel)]="editFileName" [disabled]="savingEdit">
+          <input class="col-club edit-input" type="number" placeholder="—" [(ngModel)]="editClubId" [disabled]="savingEdit">
+          <span class="col-chunks">{{ doc.chunkCount }}</span>
+          <span class="col-status">
+            <span class="status-badge" [class]="'status-' + doc.status.toLowerCase()">{{ statusLabel(doc.status) }}</span>
+          </span>
+          <span class="col-date">{{ doc.uploadDate | date:'d MMM y' }}</span>
+          <span class="col-actions">
+            <button class="text-button" (click)="saveEdit(doc)" [disabled]="savingEdit || !editFileName.trim()">Guardar</button>
+            <button class="text-button" (click)="cancelEdit()" [disabled]="savingEdit">Cancelar</button>
+          </span>
+          } @else {
+          <span class="col-name" [title]="doc.fileName">{{ doc.fileName }}</span>
+          <span class="col-club">{{ doc.clubId ?? '—' }}</span>
+          <span class="col-chunks">{{ doc.chunkCount }}</span>
+          <span class="col-status">
+            <span class="status-badge" [class]="'status-' + doc.status.toLowerCase()">{{ statusLabel(doc.status) }}</span>
+          </span>
+          <span class="col-date">{{ doc.uploadDate | date:'d MMM y' }}</span>
+          <span class="col-actions">
+            <button class="icon-action" (click)="startEdit(doc)" title="Editar" aria-label="Editar">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
+              </svg>
+            </button>
+            <button class="icon-action danger" (click)="confirmDelete(doc)" [disabled]="deletingId === doc.id" title="Borrar" aria-label="Borrar">
+              @if (deletingId !== doc.id) {
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3V2h11v1z" />
+              </svg>
+              } @else {
+              <span class="mini-spinner"></span>
+              }
+            </button>
+          </span>
+          }
+        </div>
+        }
+      </div>
+      }
+    </section>
+
+  </div>
+  }
+
+</div>

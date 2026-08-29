@@ -9,6 +9,7 @@ public class ClubDbContext : DbContext
 
     public DbSet<ApplicationSetting> ApplicationSettings { get; set; }
     public DbSet<FrequentlyQuestion> FrequentlyQuestions { get; set; }
+    public DbSet<Document> Documents { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,6 +26,12 @@ public class ClubDbContext : DbContext
             entity.HasKey(e => e.Id);
             // Si las Keywords pueden ser nulas, lo aseguramos acá
             entity.Property(e => e.Keywords).IsRequired(false);
+        });
+
+        modelBuilder.Entity<Document>(entity =>
+        {
+            entity.ToTable("Documents");
+            entity.HasKey(e => e.Id);
         });
     }
 }

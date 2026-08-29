@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Socios.Application.Interfaces;
+using Socios.Domain.Entities;
 using UglyToad.PdfPig;
 using System.Text;
 
@@ -10,11 +11,13 @@ public class DocumentService : IDocumentService
     private const int MaxChunkSize = 1000;
 
     private readonly IVectorKnowledgeRepository _vectorRepository;
+    private readonly IDocumentRepository _documentRepository;
     private readonly ILogger<DocumentService> _logger;
 
-    public DocumentService(IVectorKnowledgeRepository vectorRepository, ILogger<DocumentService> logger)
+    public DocumentService(IVectorKnowledgeRepository vectorRepository, IDocumentRepository documentRepository, ILogger<DocumentService> logger)
     {
         _vectorRepository = vectorRepository;
+        _documentRepository = documentRepository;
         _logger = logger;
     }
 
@@ -22,6 +25,9 @@ public class DocumentService : IDocumentService
     {
         if (contentType != "application/pdf" && contentType != "text/plain")
             return 0;
+
+        var document = Document.Create(fileName, contentType, clubId);
+        await _documentRepository.AddAsync(document, cancellationToken);
 
         try
         {
@@ -31,17 +37,60 @@ public class DocumentService : IDocumentService
             var chunks = ChunkText(extractedText);
 
             if (chunks.Count == 0)
+            {
+                document.MarkAsFailed();
+                await _documentRepository.UpdateAsync(document, cancellationToken);
                 return 0;
+            }
 
-            await _vectorRepository.UpsertAsync(fileName, clubId, chunks, cancellationToken);
+            await _vectorRepository.UpsertAsync(document.Id, fileName, clubId, chunks, cancellationToken);
+
+            document.MarkAsProcessed(chunks.Count);
+            await _documentRepository.UpdateAsync(document, cancellationToken);
 
             return chunks.Count;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error procesando el documento {FileName}", fileName);
+            document.MarkAsFailed();
+            await _documentRepository.UpdateAsync(document, cancellationToken);
             return 0;
         }
+    }
+
+    public Task<IEnumerable<Document>> GetDocumentsAsync(int? clubId, CancellationToken cancellationToken = default)
+    {
+        return _documentRepository.GetAllAsync(clubId, cancellationToken);
+    }
+
+    public async Task<bool> DeleteDocumentAsync(int documentId, CancellationToken cancellationToken = default)
+    {
+        var document = await _documentRepository.GetByIdAsync(documentId, cancellationToken);
+        if (document is null)
+            return false;
+
+        await _vectorRepository.DeleteByDocumentIdAsync(documentId, cancellationToken);
+        await _documentRepository.DeleteAsync(document, cancellationToken);
+
+        return true;
+    }
+
+    public async Task<bool> UpdateDocumentAsync(int documentId, string fileName, int? clubId, CancellationToken cancellationToken = default)
+    {
+        var document = await _documentRepository.GetByIdAsync(documentId, cancellationToken);
+        if (document is null)
+            return false;
+
+        var fileNameChanged = document.FileName != fileName;
+
+        document.UpdateMetadata(fileName, clubId);
+        await _documentRepository.UpdateAsync(document, cancellationToken);
+
+        if (fileNameChanged)
+            await _vectorRepository.UpdateSourceAsync(documentId, fileName, cancellationToken);
+
+        return true;
     }
 
     private static string ExtractTextFromPdf(Stream pdfStream)

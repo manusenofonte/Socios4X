@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
@@ -13,6 +14,21 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// ==============================
+// FORWARDED HEADERS (detrás del proxy de Render)
+// ==============================
+// Sin esto, RemoteIpAddress es siempre la IP interna del proxy de Render, no la
+// del visitante real, y el rate limiting de abajo termina compartiendo un único
+// balde entre todos los usuarios. Render solo permite tráfico entrante a través
+// de su proxy (el contenedor no es alcanzable directo), así que confiar en el
+// primer salto sin restringir por red/proxy conocido es seguro acá.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // ==============================
 // RATE LIMITING (por IP)
@@ -86,6 +102,8 @@ builder.Services.AddKernel()
 // BUILD APP
 // ==============================
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment())
 {

@@ -11,7 +11,17 @@ public class NullVectorKnowledgeRepository : IVectorKnowledgeRepository
         return Task.FromResult(Enumerable.Empty<KnowledgeChunk>());
     }
 
-    public Task UpsertAsync(string source, int? clubId, IEnumerable<string> textChunks, CancellationToken cancellationToken = default)
+    public Task UpsertAsync(int documentId, string source, int? clubId, IEnumerable<string> textChunks, CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteByDocumentIdAsync(int documentId, CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateSourceAsync(int documentId, string newSource, CancellationToken cancellationToken = default)
     {
         return Task.CompletedTask;
     }

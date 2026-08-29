@@ -59,6 +59,7 @@ public static class DependencyInjection
     {
         // Registro del repositorio de FAQs
         services.AddScoped<IFAQRepository, FAQRepository>();
+        services.AddScoped<IDocumentRepository, DocumentRepository>();
 
         var qdrantEndpoint = configuration["AI:Qdrant:Endpoint"];
         if (string.IsNullOrWhiteSpace(qdrantEndpoint))
