@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { PagedResult } from '../models/paged-result';
 import { AdminAuthService } from './admin-auth';
 
 export interface AdminDocument {
@@ -26,8 +27,9 @@ export class AdminDocumentsService {
 
   constructor(private http: HttpClient, private auth: AdminAuthService) {}
 
-  list(): Observable<AdminDocument[]> {
-    return this.http.get<AdminDocument[]>(this.apiUrl, { headers: this.authHeaders() });
+  list(page: number, pageSize: number): Observable<PagedResult<AdminDocument>> {
+    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    return this.http.get<PagedResult<AdminDocument>>(this.apiUrl, { headers: this.authHeaders(), params });
   }
 
   upload(file: File, clubId: number | null): Observable<UploadDocumentResponse> {

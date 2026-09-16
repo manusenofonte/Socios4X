@@ -4,11 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AdminAuthService } from '../../services/admin-auth';
 import { AdminDocumentsService, AdminDocument } from '../../services/admin-documents';
+import { PagedResult } from '../../models/paged-result';
+import { PaginatorComponent } from '../paginator/paginator';
 
 @Component({
   selector: 'app-admin-documents',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, PaginatorComponent],
   templateUrl: './admin-documents.html',
   styleUrl: './admin-documents.css'
 })
@@ -26,6 +28,10 @@ export class AdminDocumentsComponent implements OnInit {
   documents: AdminDocument[] = [];
   loading = false;
   loadError = '';
+
+  readonly pageSize = 10;
+  page = 1;
+  totalCount = 0;
 
   selectedFile: File | null = null;
   uploadClubId: number | null = null;
@@ -88,9 +94,9 @@ export class AdminDocumentsComponent implements OnInit {
     this.authError = '';
     this.auth.setKey(key);
 
-    this.documentsService.list().subscribe({
-      next: (docs) => {
-        this.documents = docs;
+    this.documentsService.list(1, this.pageSize).subscribe({
+      next: (result) => {
+        this.applyPage(result);
         this.verifying = false;
         this.keyInput = '';
         this.cdr.detectChanges();
@@ -109,16 +115,31 @@ export class AdminDocumentsComponent implements OnInit {
   logout(): void {
     this.auth.clear();
     this.documents = [];
+    this.page = 1;
+    this.totalCount = 0;
     this.editingId = null;
   }
 
-  fetchDocuments(): void {
+  onPageChange(page: number): void {
+    this.editingId = null;
+    this.fetchDocuments(page);
+  }
+
+  fetchDocuments(page = this.page): void {
     this.loading = true;
     this.loadError = '';
 
-    this.documentsService.list().subscribe({
-      next: (docs) => {
-        this.documents = docs;
+    this.documentsService.list(page, this.pageSize).subscribe({
+      next: (result) => {
+        // Si la página quedó vacía (p. ej. se borró el último documento de la última
+        // página), saltamos a la última página que todavía tiene documentos.
+        const lastPage = Math.max(1, Math.ceil(result.totalCount / this.pageSize));
+        if (result.items.length === 0 && page > lastPage) {
+          this.fetchDocuments(lastPage);
+          return;
+        }
+
+        this.applyPage(result);
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -160,7 +181,8 @@ export class AdminDocumentsComponent implements OnInit {
         this.uploading = false;
         this.clearSelectedFile();
         this.uploadClubId = null;
-        this.fetchDocuments();
+        // El listado va del más nuevo al más viejo: el documento subido aparece en la página 1
+        this.fetchDocuments(1);
       },
       error: (err) => {
         this.uploading = false;
@@ -214,9 +236,9 @@ export class AdminDocumentsComponent implements OnInit {
 
     this.documentsService.delete(doc.id).subscribe({
       next: () => {
-        this.documents = this.documents.filter((d) => d.id !== doc.id);
         this.deletingId = null;
-        this.cdr.detectChanges();
+        // Recargamos la página para que suba el siguiente documento y se actualice el total
+        this.fetchDocuments();
       },
       error: (err) => {
         this.deletingId = null;
@@ -237,6 +259,12 @@ export class AdminDocumentsComponent implements OnInit {
     } else {
       this.actionError = 'Ocurrió un error. Intentá de nuevo.';
     }
+  }
+
+  private applyPage(result: PagedResult<AdminDocument>): void {
+    this.documents = result.items;
+    this.page = result.page;
+    this.totalCount = result.totalCount;
   }
 
   statusLabel(status: string): string {

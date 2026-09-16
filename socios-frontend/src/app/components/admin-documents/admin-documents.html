@@ -98,7 +98,7 @@
       <p class="inline-error">{{ actionError }}</p>
       }
 
-      @if (loading) {
+      @if (loading && documents.length === 0) {
       <p class="state-message">Cargando documentos...</p>
       }
 
@@ -110,8 +110,8 @@
       <p class="state-message">Todavía no hay documentos cargados.</p>
       }
 
-      @if (!loading && documents.length > 0) {
-      <div class="documents-table">
+      @if (documents.length > 0) {
+      <div class="documents-table" [class.is-loading]="loading">
         <div class="table-row table-head">
           <span class="col-name">Nombre</span>
           <span class="col-club">Club</span>
@@ -164,6 +164,14 @@
         </div>
         }
       </div>
+
+      <app-paginator
+        [page]="page"
+        [pageSize]="pageSize"
+        [totalCount]="totalCount"
+        [disabled]="loading"
+        (pageChange)="onPageChange($event)">
+      </app-paginator>
       }
     </section>
 

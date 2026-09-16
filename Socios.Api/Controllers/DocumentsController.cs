@@ -7,11 +7,13 @@ namespace Socios.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[EnableRateLimiting("UploadPolicy")]
+[EnableRateLimiting("AdminPolicy")]
 public class DocumentsController : ControllerBase
 {
     private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
     private const string AdminKeyHeader = "X-Admin-Key";
+    private const int DefaultPageSize = 10;
+    private const int MaxPageSize = 50;
 
     private readonly IDocumentService _documentService;
     private readonly IConfiguration _configuration;
@@ -23,6 +25,7 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpPost("upload")]
+    [EnableRateLimiting("UploadPolicy")]
     [RequestSizeLimit(MaxFileSizeBytes)]
     public async Task<IActionResult> UploadDocument(IFormFile file, [FromForm] int? clubId, CancellationToken cancellationToken)
     {
@@ -54,26 +57,39 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetDocuments([FromQuery] int? clubId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetDocuments(
+        [FromQuery] int? clubId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = DefaultPageSize,
+        CancellationToken cancellationToken = default)
     {
         if (!IsAdminKeyValid())
         {
             return Unauthorized("Se requiere una clave de administrador para ver los documentos.");
         }
 
-        var documents = await _documentService.GetDocumentsAsync(clubId, cancellationToken);
+        page = Math.Max(page, 1);
+        pageSize = pageSize <= 0 ? DefaultPageSize : Math.Min(pageSize, MaxPageSize);
 
-        var response = documents.Select(d => new DocumentResponse
+        var documents = await _documentService.GetDocumentsAsync(clubId, page, pageSize, cancellationToken);
+
+        var response = new PagedResult<DocumentResponse>
         {
-            Id = d.Id,
-            FileName = d.FileName,
-            FileType = d.FileType,
-            ClubId = d.ClubId,
-            ChunkCount = d.ChunkCount,
-            Status = d.Status,
-            UploadDate = d.UploadDate,
-            ProcessedDate = d.ProcessedDate
-        });
+            Items = documents.Items.Select(d => new DocumentResponse
+            {
+                Id = d.Id,
+                FileName = d.FileName,
+                FileType = d.FileType,
+                ClubId = d.ClubId,
+                ChunkCount = d.ChunkCount,
+                Status = d.Status,
+                UploadDate = d.UploadDate,
+                ProcessedDate = d.ProcessedDate
+            }).ToList(),
+            Page = documents.Page,
+            PageSize = documents.PageSize,
+            TotalCount = documents.TotalCount
+        };
 
         return Ok(response);
     }

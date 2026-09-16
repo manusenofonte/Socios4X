@@ -335,7 +335,12 @@
   display: flex;
   flex-direction: column;
   min-width: 55rem;
+  transition: opacity 0.2s ease;
 }
+
+  .documents-table.is-loading {
+    opacity: 0.5;
+  }
 
 .table-row {
   display: grid;

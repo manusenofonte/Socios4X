@@ -56,6 +56,18 @@ builder.Services.AddRateLimiter(options =>
                 PermitLimit = 5,
                 QueueLimit = 0
             }));
+
+    // Operaciones livianas del panel (listar, paginar, editar, borrar): no generan
+    // embeddings, así que admiten bastante más tráfico que la subida de archivos.
+    options.AddPolicy("AdminPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 60,
+                QueueLimit = 0
+            }));
 });
 
 // ==============================

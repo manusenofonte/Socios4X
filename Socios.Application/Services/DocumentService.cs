@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Socios.Application.DTOs;
 using Socios.Application.Interfaces;
 using Socios.Domain.Entities;
 using UglyToad.PdfPig;
@@ -59,9 +60,9 @@ public class DocumentService : IDocumentService
         }
     }
 
-    public Task<IEnumerable<Document>> GetDocumentsAsync(int? clubId, CancellationToken cancellationToken = default)
+    public Task<PagedResult<Document>> GetDocumentsAsync(int? clubId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        return _documentRepository.GetAllAsync(clubId, cancellationToken);
+        return _documentRepository.GetPagedAsync(clubId, page, pageSize, cancellationToken);
     }
 
     public async Task<bool> DeleteDocumentAsync(int documentId, CancellationToken cancellationToken = default)

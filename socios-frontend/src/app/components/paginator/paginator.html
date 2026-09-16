@@ -1,0 +1,26 @@
+<nav class="paginator" aria-label="Paginación">
+  <span class="paginator-range">
+    {{ rangeStart }}–{{ rangeEnd }} de {{ totalCount }}
+  </span>
+
+  @if (totalPages > 1) {
+  <div class="paginator-controls">
+    <button class="page-button" type="button" (click)="goTo(page - 1)"
+            [disabled]="disabled || page === 1" aria-label="Página anterior">‹</button>
+
+    @for (p of pages; track $index) {
+    @if (p === null) {
+    <span class="page-gap">…</span>
+    } @else {
+    <button class="page-button" type="button" (click)="goTo(p)"
+            [class.active]="p === page" [disabled]="disabled"
+            [attr.aria-current]="p === page ? 'page' : null"
+            [attr.aria-label]="'Página ' + p">{{ p }}</button>
+    }
+    }
+
+    <button class="page-button" type="button" (click)="goTo(page + 1)"
+            [disabled]="disabled || page === totalPages" aria-label="Página siguiente">›</button>
+  </div>
+  }
+</nav>
