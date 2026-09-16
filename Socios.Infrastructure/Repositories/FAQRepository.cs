@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Socios.Application.Interfaces;
 using Socios.Domain.Entities;
 using Socios.Infrastructure.Persistence;
@@ -16,11 +17,18 @@ public class FAQRepository : IFAQRepository
         "este", "esta", "estos", "estas", "puedo", "tengo", "hay", "the", "how", "to", "for", "of", "is"
     };
 
-    private readonly ClubDbContext _context;
+    // Las FAQs cambian muy poco: se guardan en memoria para no ir a SQL en cada consulta.
+    // Una FAQ nueva cargada en la base tarda hasta este tiempo en empezar a usarse.
+    private const string AllFaqsCacheKey = "faqs:all";
+    private static readonly TimeSpan AllFaqsCacheDuration = TimeSpan.FromMinutes(5);
 
-    public FAQRepository(ClubDbContext context)
+    private readonly ClubDbContext _context;
+    private readonly IMemoryCache _cache;
+
+    public FAQRepository(ClubDbContext context, IMemoryCache cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<IEnumerable<FAQMatch>> SearchRelevantFAQsAsync(string query, CancellationToken cancellationToken = default)
@@ -34,10 +42,14 @@ public class FAQRepository : IFAQRepository
 
         // Tabla chica (decenas de filas): traemos todo y puntuamos en memoria por palabras
         // compartidas, en vez de exigir coincidencia literal de la frase completa.
-        var allFaqs = await _context.FrequentlyQuestions
-            .AsNoTracking()
-            .Where(f => f.Question != null)
-            .ToListAsync(cancellationToken);
+        var allFaqs = await _cache.GetOrCreateAsync(AllFaqsCacheKey, entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = AllFaqsCacheDuration;
+            return _context.FrequentlyQuestions
+                .AsNoTracking()
+                .Where(f => f.Question != null)
+                .ToListAsync(cancellationToken);
+        }) ?? [];
 
         return allFaqs
             .Select(f =>

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Socios.Application;
+using Socios.Application.Services;
 using Socios.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -110,8 +111,14 @@ builder.Services.AddKernel()
         apiKey: openAiApiKey
     );
 
-
-    
+// gpt-5-nano es un modelo de razonamiento: con menos esfuerzo de razonamiento responde
+// bastante más rápido. Vacío = el valor por defecto del modelo.
+var reasoningEffort = openAiConfig["ReasoningEffort"];
+builder.Services.Configure<AssistantOptions>(options =>
+{
+    if (!string.IsNullOrWhiteSpace(reasoningEffort))
+        options.ExecutionSettings = new OpenAIPromptExecutionSettings { ReasoningEffort = reasoningEffort };
+});
 
 // ==============================
 // BUILD APP

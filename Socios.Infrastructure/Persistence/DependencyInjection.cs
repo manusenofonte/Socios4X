@@ -57,7 +57,8 @@ public static class DependencyInjection
 
     private static void AddRepositories(IServiceCollection services, IConfiguration configuration)
     {
-        // Registro del repositorio de FAQs
+        // Registro del repositorio de FAQs (usa caché en memoria)
+        services.AddMemoryCache();
         services.AddScoped<IFAQRepository, FAQRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
         services.AddScoped<IUnansweredQuestionRepository, UnansweredQuestionRepository>();

@@ -15,6 +15,10 @@ public class QdrantVectorKnowledgeRepository : IVectorKnowledgeRepository
     // al prompt en vez de confiar en que el modelo lo ignore.
     private const float MinScoreThreshold = 0.35f;
 
+    // Una vez que sabemos que la colección existe no hace falta preguntarle a Qdrant en
+    // cada consulta (es un viaje de red más). El repositorio es scoped, por eso es static.
+    private static volatile bool _collectionKnownToExist;
+
     private readonly QdrantClient _client;
     private readonly ITextEmbeddingGenerationService _embeddingService;
 
@@ -26,7 +30,7 @@ public class QdrantVectorKnowledgeRepository : IVectorKnowledgeRepository
 
     public async Task<IEnumerable<KnowledgeChunk>> SearchAsync(string query, int? clubId, CancellationToken cancellationToken = default)
     {
-        if (!await _client.CollectionExistsAsync(CollectionName, cancellationToken))
+        if (!await CollectionExistsAsync(cancellationToken))
             return Enumerable.Empty<KnowledgeChunk>();
 
         var embedding = await _embeddingService.GenerateEmbeddingAsync(query, cancellationToken: cancellationToken);
@@ -127,9 +131,21 @@ public class QdrantVectorKnowledgeRepository : IVectorKnowledgeRepository
         await _client.SetPayloadAsync(CollectionName, payload, filter, cancellationToken: cancellationToken);
     }
 
+    private async Task<bool> CollectionExistsAsync(CancellationToken cancellationToken)
+    {
+        if (_collectionKnownToExist)
+            return true;
+
+        var exists = await _client.CollectionExistsAsync(CollectionName, cancellationToken);
+        if (exists)
+            _collectionKnownToExist = true;
+
+        return exists;
+    }
+
     private async Task EnsureCollectionExistsAsync(CancellationToken cancellationToken)
     {
-        if (await _client.CollectionExistsAsync(CollectionName, cancellationToken))
+        if (await CollectionExistsAsync(cancellationToken))
             return;
 
         await _client.CreateCollectionAsync(

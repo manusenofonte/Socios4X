@@ -1,8 +1,11 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Text;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Socios.Application.Interfaces;
 using Socios.Domain.Entities;
-using System.Text;
 
 namespace Socios.Application.Services;
 
@@ -15,76 +18,9 @@ public class VirtualAssistantService : IVirtualAssistantService
     internal const string NoInformationMarker = "[SIN_INFO]";
     internal const string OffTopicMarker = "[FUERA_DE_TEMA]";
 
-    private readonly Kernel _kernel;
-    private readonly IFAQRepository _faqRepository;
-    private readonly IVectorKnowledgeRepository _vectorRepository;
-    private readonly IUnansweredQuestionRepository _unansweredQuestionRepository;
-    private readonly ILogger<VirtualAssistantService> _logger;
+    private const int MaxContextChunks = 6;
 
-    public VirtualAssistantService(
-        Kernel kernel,
-        IFAQRepository faqRepository,
-        IVectorKnowledgeRepository vectorRepository,
-        IUnansweredQuestionRepository unansweredQuestionRepository,
-        ILogger<VirtualAssistantService> logger)
-    {
-        _kernel = kernel;
-        _faqRepository = faqRepository;
-        _vectorRepository = vectorRepository;
-        _unansweredQuestionRepository = unansweredQuestionRepository;
-        _logger = logger;
-    }
-
-    public async Task<string> AskQuestionAsync(
-        string userQuery,
-        int? clubId,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(userQuery))
-            throw new ArgumentException("La consulta no puede estar vacía.");
-
-        // 1. Búsqueda de FAQs relevantes
-        var faqs = await _faqRepository
-            .SearchRelevantFAQsAsync(userQuery, cancellationToken);
-
-        // 2. Búsqueda en repositorio vectorial (clubId null = sin filtrar por club)
-        var documentChunks = await _vectorRepository.SearchAsync(userQuery, clubId, cancellationToken);
-
-        // 3. Normalización de FAQs como chunks (score real de coincidencia, no fijo)
-        var faqChunks = faqs.Select(m => new KnowledgeChunk
-        {
-            Text = $"Pregunta: {m.Faq.Question}\nRespuesta: {m.Faq.Answer}",
-            Score = m.Score,
-            Source = "FAQ"
-        });
-
-        // 4. Unificación y ordenamiento por relevancia
-        var allChunks = faqChunks
-            .Concat(documentChunks)
-            .OrderByDescending(c => c.Score)
-            .Take(6)
-            .ToList();
-
-        // 5. Construcción del contexto
-        var contextBuilder = new StringBuilder();
-        contextBuilder.AppendLine("--- CONTEXTO RELEVANTE ---");
-
-        if (allChunks.Any())
-        {
-            foreach (var chunk in allChunks)
-            {
-                contextBuilder.AppendLine($"[{chunk.Source}] {chunk.Text}");
-            }
-        }
-        else
-        {
-            contextBuilder.AppendLine("No hay información relevante.");
-        }
-
-        contextBuilder.AppendLine("--- FIN CONTEXTO ---");
-
-        // 6. Definición del prompt
-        var prompt = @"
+    private const string PromptTemplate = @"
 Eres el asistente virtual de 4x para los clubes que usan su Sistema de Gestión de Socios.
 
 Alcance del asistente: el club y su administración (socios, altas y bajas, grupo familiar, tipos de socio, cuotas, liquidaciones, pagos, recibos, deudas, cobradores, reportes, usuarios y roles), las actividades, servicios, profesores, turnos y alquiler de espacios del club, los medios de pago (Red Link, Mercado Pago), la credencial virtual, el envío de avisos y recibos por correo o WhatsApp, el Sistema de Socios Web y la empresa 4x.
@@ -115,25 +51,179 @@ Pregunta:
 {{$query}}
 ";
 
-        var arguments = new KernelArguments
-        {
-            ["context"] = contextBuilder.ToString(),
-            ["query"] = userQuery
-        };
+    private readonly Kernel _kernel;
+    private readonly IFAQRepository _faqRepository;
+    private readonly IVectorKnowledgeRepository _vectorRepository;
+    private readonly IUnansweredQuestionRepository _unansweredQuestionRepository;
+    private readonly AssistantOptions _options;
+    private readonly ILogger<VirtualAssistantService> _logger;
 
-        var result = await _kernel.InvokePromptAsync(
-            prompt,
-            arguments,
-            cancellationToken: cancellationToken);
+    public VirtualAssistantService(
+        Kernel kernel,
+        IFAQRepository faqRepository,
+        IVectorKnowledgeRepository vectorRepository,
+        IUnansweredQuestionRepository unansweredQuestionRepository,
+        IOptions<AssistantOptions> options,
+        ILogger<VirtualAssistantService> logger)
+    {
+        _kernel = kernel;
+        _faqRepository = faqRepository;
+        _vectorRepository = vectorRepository;
+        _unansweredQuestionRepository = unansweredQuestionRepository;
+        _options = options.Value;
+        _logger = logger;
+    }
 
-        // 7. Interpretación de la respuesta: si no hubo respuesta, se muestra el mensaje
-        //    estándar y, si la pregunta es del tema, se registra para el panel de admin.
+    public async Task<string> AskQuestionAsync(
+        string userQuery,
+        int? clubId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(userQuery))
+            throw new ArgumentException("La consulta no puede estar vacía.");
+
+        var stopwatch = Stopwatch.StartNew();
+        var arguments = await BuildPromptArgumentsAsync(userQuery, clubId, cancellationToken);
+        var retrievalMs = stopwatch.ElapsedMilliseconds;
+
+        var result = await _kernel.InvokePromptAsync(PromptTemplate, arguments, cancellationToken: cancellationToken);
+
+        // Si no hubo respuesta, se muestra el mensaje estándar y, si la pregunta es
+        // del tema, se registra para el panel de admin.
         var outcome = InterpretModelOutput(result.ToString());
 
         if (outcome.ShouldRegister)
             await RegisterUnansweredQuestionAsync(userQuery, clubId);
 
+        _logger.LogInformation(
+            "Consulta respondida: búsqueda {RetrievalMs} ms, total {TotalMs} ms",
+            retrievalMs, stopwatch.ElapsedMilliseconds);
+
         return outcome.Answer;
+    }
+
+    public async IAsyncEnumerable<string> AskQuestionStreamAsync(
+        string userQuery,
+        int? clubId,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(userQuery))
+            throw new ArgumentException("La consulta no puede estar vacía.");
+
+        var stopwatch = Stopwatch.StartNew();
+        var arguments = await BuildPromptArgumentsAsync(userQuery, clubId, cancellationToken);
+        var retrievalMs = stopwatch.ElapsedMilliseconds;
+        long? firstTextMs = null;
+
+        var fullOutput = new StringBuilder();
+        var streamingToUser = false;
+
+        await foreach (var update in _kernel.InvokePromptStreamingAsync(PromptTemplate, arguments, cancellationToken: cancellationToken))
+        {
+            var text = update.ToString();
+            if (string.IsNullOrEmpty(text))
+                continue;
+
+            fullOutput.Append(text);
+
+            if (streamingToUser)
+            {
+                yield return text;
+                continue;
+            }
+
+            // Todavía no se mandó nada: si la respuesta es una marca ([SIN_INFO] o
+            // [FUERA_DE_TEMA]) no tiene que llegar al usuario, así que retenemos el
+            // texto hasta poder decidir.
+            var decision = DecideStreamStart(fullOutput.ToString());
+            if (decision == StreamStart.Answer)
+            {
+                streamingToUser = true;
+                firstTextMs = stopwatch.ElapsedMilliseconds;
+                yield return fullOutput.ToString().TrimStart();
+            }
+        }
+
+        var outcome = InterpretModelOutput(fullOutput.ToString());
+
+        // Era una marca (o vino vacío): recién ahora se manda el mensaje estándar
+        if (!streamingToUser)
+            yield return outcome.Answer;
+
+        if (outcome.ShouldRegister)
+            await RegisterUnansweredQuestionAsync(userQuery, clubId);
+
+        _logger.LogInformation(
+            "Consulta respondida (stream): búsqueda {RetrievalMs} ms, primer texto {FirstTextMs} ms, total {TotalMs} ms",
+            retrievalMs, firstTextMs, stopwatch.ElapsedMilliseconds);
+    }
+
+    private async Task<KernelArguments> BuildPromptArgumentsAsync(string userQuery, int? clubId, CancellationToken cancellationToken)
+    {
+        // Las dos búsquedas son independientes (SQL y Qdrant): corren en paralelo
+        var faqsTask = _faqRepository.SearchRelevantFAQsAsync(userQuery, cancellationToken);
+        var documentChunksTask = _vectorRepository.SearchAsync(userQuery, clubId, cancellationToken);
+        await Task.WhenAll(faqsTask, documentChunksTask);
+
+        // Normalización de FAQs como chunks (score real de coincidencia, no fijo)
+        var faqChunks = faqsTask.Result.Select(m => new KnowledgeChunk
+        {
+            Text = $"Pregunta: {m.Faq.Question}\nRespuesta: {m.Faq.Answer}",
+            Score = m.Score,
+            Source = "FAQ"
+        });
+
+        // Unificación y ordenamiento por relevancia
+        var allChunks = faqChunks
+            .Concat(documentChunksTask.Result)
+            .OrderByDescending(c => c.Score)
+            .Take(MaxContextChunks)
+            .ToList();
+
+        var contextBuilder = new StringBuilder();
+        contextBuilder.AppendLine("--- CONTEXTO RELEVANTE ---");
+
+        if (allChunks.Count > 0)
+        {
+            foreach (var chunk in allChunks)
+                contextBuilder.AppendLine($"[{chunk.Source}] {chunk.Text}");
+        }
+        else
+        {
+            contextBuilder.AppendLine("No hay información relevante.");
+        }
+
+        contextBuilder.AppendLine("--- FIN CONTEXTO ---");
+
+        var arguments = _options.ExecutionSettings is null
+            ? new KernelArguments()
+            : new KernelArguments(_options.ExecutionSettings);
+
+        arguments["context"] = contextBuilder.ToString();
+        arguments["query"] = userQuery;
+
+        return arguments;
+    }
+
+    // Decide, con el texto recibido hasta ahora, si ya se puede empezar a mandar al usuario
+    internal static StreamStart DecideStreamStart(string outputSoFar)
+    {
+        var trimmed = outputSoFar.TrimStart();
+        if (trimmed.Length == 0)
+            return StreamStart.Undecided;
+
+        // Las marcas empiezan con "[": cualquier otra cosa es una respuesta normal
+        if (trimmed[0] != '[')
+            return StreamStart.Answer;
+
+        var longestMarker = Math.Max(NoInformationMarker.Length, OffTopicMarker.Length);
+        if (!trimmed.Contains(']') && trimmed.Length < longestMarker)
+            return StreamStart.Undecided;
+
+        return trimmed.StartsWith(NoInformationMarker, StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith(OffTopicMarker, StringComparison.OrdinalIgnoreCase)
+                ? StreamStart.Marker
+                : StreamStart.Answer; // p. ej. un link de Markdown "[texto](url)"
     }
 
     internal static AssistantOutcome InterpretModelOutput(string modelOutput)
@@ -174,3 +264,10 @@ Pregunta:
 }
 
 internal record AssistantOutcome(string Answer, bool ShouldRegister);
+
+internal enum StreamStart
+{
+    Undecided,
+    Marker,
+    Answer
+}

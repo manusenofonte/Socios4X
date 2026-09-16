@@ -106,19 +106,35 @@ export class ChatComponent implements OnInit {
     this.cdr.detectChanges();
     this.scrollToBottom();
 
-    this.assistantService.ask(userText).subscribe({
-      next: (response) => {
-        this.isTyping = false;
-        this.messages.push({ text: response.answer, isUser: false });
+    // La burbuja de la respuesta se crea con el primer pedazo de texto; hasta entonces
+    // se siguen mostrando los puntitos de "escribiendo".
+    let answer: ChatMessage | null = null;
+
+    this.assistantService.askStream(userText).subscribe({
+      next: (chunk) => {
+        if (!answer) {
+          answer = { text: '', isUser: false };
+          this.messages.push(answer);
+          this.isTyping = false;
+        }
+        answer.text += chunk;
         this.cdr.detectChanges();
         this.scrollToBottom();
       },
+      complete: () => {
+        this.isTyping = false;
+        this.cdr.detectChanges();
+      },
       error: () => {
         this.isTyping = false;
-        this.messages.push({
-          text: 'Uy, no pude conectarme con el servidor. Intentá de nuevo en un momento.',
-          isUser: false
-        });
+        if (answer) {
+          answer.text += '\n\n_La respuesta se cortó. Intentá de nuevo._';
+        } else {
+          this.messages.push({
+            text: 'Uy, no pude conectarme con el servidor. Intentá de nuevo en un momento.',
+            isUser: false
+          });
+        }
         this.cdr.detectChanges();
         this.scrollToBottom();
       }
