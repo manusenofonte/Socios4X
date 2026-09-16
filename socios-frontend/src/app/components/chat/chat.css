@@ -351,3 +351,57 @@
     transform: scale(1);
   }
 }
+
+/* --- Pantallas angostas o bajas: celular, o compu con mucho zoom --- */
+@media (max-width: 640px), (max-height: 500px) {
+  /* El chat ocupa toda la pantalla (dvh descuenta la barra del navegador del celular) */
+  .main-container {
+    height: 100vh;
+    height: 100dvh;
+    padding: 0;
+  }
+
+  .custom-chat-card {
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .chat-header {
+    padding: 1.2rem 1.4rem;
+  }
+
+  .chat-logo {
+    height: 2.8rem;
+  }
+
+  .theme-toggle,
+  .clear-chat-button {
+    width: 4rem;
+    height: 4rem;
+  }
+
+  .chat-body {
+    padding: 1.5rem 1.2rem;
+  }
+
+  .message-bubble {
+    max-width: 85%;
+  }
+
+  .suggestions-row {
+    padding-left: 0;
+  }
+
+  .chat-input-row {
+    padding: 1rem 1.2rem 1.4rem;
+    gap: 0.8rem;
+  }
+
+  .custom-input {
+    padding: 1.2rem 1.6rem;
+    min-width: 0;
+  }
+}
