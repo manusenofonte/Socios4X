@@ -1,4 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
+import { HttpHeaders } from '@angular/common/http';
 
 @Injectable({ providedIn: 'root' })
 export class AdminAuthService {
@@ -13,5 +14,10 @@ export class AdminAuthService {
 
   clear(): void {
     this._key.set(null);
+  }
+
+  // Headers para los endpoints protegidos del panel de administración
+  headers(): HttpHeaders {
+    return new HttpHeaders({ 'X-Admin-Key': this._key() ?? '' });
   }
 }

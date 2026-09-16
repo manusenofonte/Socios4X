@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="Socios.Api/Socios.Api.csproj" />
+  <Project Path="Socios.Application.Tests/Socios.Application.Tests.csproj" />
   <Project Path="Socios.Application/Socios.Application.csproj" />
   <Project Path="Socios.Domain/Socios.Domain.csproj" />
   <Project Path="Socios.Infrastructure/Socios.Infrastructure.csproj" />

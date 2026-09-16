@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Socios.Domain.Entities;
 
 namespace Socios.Infrastructure.Persistence;
@@ -10,6 +11,7 @@ public class ClubDbContext : DbContext
     public DbSet<ApplicationSetting> ApplicationSettings { get; set; }
     public DbSet<FrequentlyQuestion> FrequentlyQuestions { get; set; }
     public DbSet<Document> Documents { get; set; }
+    public DbSet<UnansweredQuestion> UnansweredQuestions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,6 +34,26 @@ public class ClubDbContext : DbContext
         {
             entity.ToTable("Documents");
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.UploadDate).HasConversion(UtcConverter);
+            entity.Property(e => e.ProcessedDate).HasConversion(NullableUtcConverter);
+        });
+
+        modelBuilder.Entity<UnansweredQuestion>(entity =>
+        {
+            entity.ToTable("UnansweredQuestions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Question).HasMaxLength(UnansweredQuestion.MaxQuestionLength);
+            entity.Property(e => e.CreatedAt).HasConversion(UtcConverter);
         });
     }
+
+    // Las fechas se guardan en UTC, pero datetime2 no guarda la zona: al leerlas las
+    // marcamos como UTC para que el JSON salga con "Z" y el navegador las pase a hora local.
+    private static readonly ValueConverter<DateTime, DateTime> UtcConverter = new(
+        v => v,
+        v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+    private static readonly ValueConverter<DateTime?, DateTime?> NullableUtcConverter = new(
+        v => v,
+        v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v);
 }

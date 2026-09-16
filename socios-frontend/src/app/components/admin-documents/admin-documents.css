@@ -162,6 +162,31 @@
   color: var(--color-texto-secundario);
 }
 
+.admin-tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 2.5rem;
+  border-bottom: 1px solid var(--color-bordes);
+  overflow-x: auto;
+}
+
+.admin-tab {
+  padding: 1.2rem 0.8rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-texto-secundario);
+  font-size: 1.3rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+  .admin-tab.active {
+    border-bottom-color: var(--color-btn-send);
+    color: var(--color-texto-principal);
+    font-weight: 600;
+  }
+
 .header-actions {
   display: flex;
   align-items: center;

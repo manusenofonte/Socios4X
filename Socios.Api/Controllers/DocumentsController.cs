@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Socios.Api.Filters;
 using Socios.Application.DTOs;
 using Socios.Application.Interfaces;
 
@@ -7,21 +8,19 @@ namespace Socios.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[RequireAdminKey]
 [EnableRateLimiting("AdminPolicy")]
 public class DocumentsController : ControllerBase
 {
     private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
-    private const string AdminKeyHeader = "X-Admin-Key";
     private const int DefaultPageSize = 10;
     private const int MaxPageSize = 50;
 
     private readonly IDocumentService _documentService;
-    private readonly IConfiguration _configuration;
 
-    public DocumentsController(IDocumentService documentService, IConfiguration configuration)
+    public DocumentsController(IDocumentService documentService)
     {
         _documentService = documentService;
-        _configuration = configuration;
     }
 
     [HttpPost("upload")]
@@ -29,11 +28,6 @@ public class DocumentsController : ControllerBase
     [RequestSizeLimit(MaxFileSizeBytes)]
     public async Task<IActionResult> UploadDocument(IFormFile file, [FromForm] int? clubId, CancellationToken cancellationToken)
     {
-        if (!IsAdminKeyValid())
-        {
-            return Unauthorized("Se requiere una clave de administrador para cargar documentos.");
-        }
-
         if (file == null || file.Length == 0)
         {
             return BadRequest("No se proporcionó ningún archivo.");
@@ -63,11 +57,6 @@ public class DocumentsController : ControllerBase
         [FromQuery] int pageSize = DefaultPageSize,
         CancellationToken cancellationToken = default)
     {
-        if (!IsAdminKeyValid())
-        {
-            return Unauthorized("Se requiere una clave de administrador para ver los documentos.");
-        }
-
         page = Math.Max(page, 1);
         pageSize = pageSize <= 0 ? DefaultPageSize : Math.Min(pageSize, MaxPageSize);
 
@@ -97,11 +86,6 @@ public class DocumentsController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateDocument(int id, [FromBody] UpdateDocumentRequest request, CancellationToken cancellationToken)
     {
-        if (!IsAdminKeyValid())
-        {
-            return Unauthorized("Se requiere una clave de administrador para editar documentos.");
-        }
-
         var updated = await _documentService.UpdateDocumentAsync(id, request.FileName, request.ClubId, cancellationToken);
 
         if (!updated)
@@ -115,11 +99,6 @@ public class DocumentsController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteDocument(int id, CancellationToken cancellationToken)
     {
-        if (!IsAdminKeyValid())
-        {
-            return Unauthorized("Se requiere una clave de administrador para borrar documentos.");
-        }
-
         var deleted = await _documentService.DeleteDocumentAsync(id, cancellationToken);
 
         if (!deleted)
@@ -128,13 +107,5 @@ public class DocumentsController : ControllerBase
         }
 
         return NoContent();
-    }
-
-    private bool IsAdminKeyValid()
-    {
-        var adminKey = _configuration["Admin:UploadKey"];
-        var providedKey = Request.Headers[AdminKeyHeader].ToString();
-
-        return !string.IsNullOrEmpty(adminKey) && providedKey == adminKey;
     }
 }

@@ -6,11 +6,14 @@ import { AdminAuthService } from '../../services/admin-auth';
 import { AdminDocumentsService, AdminDocument } from '../../services/admin-documents';
 import { PagedResult } from '../../models/paged-result';
 import { PaginatorComponent } from '../paginator/paginator';
+import { UnansweredQuestionsComponent } from '../unanswered-questions/unanswered-questions';
+
+type AdminTab = 'documents' | 'questions';
 
 @Component({
   selector: 'app-admin-documents',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, PaginatorComponent],
+  imports: [CommonModule, FormsModule, RouterLink, PaginatorComponent, UnansweredQuestionsComponent],
   templateUrl: './admin-documents.html',
   styleUrl: './admin-documents.css'
 })
@@ -20,6 +23,7 @@ export class AdminDocumentsComponent implements OnInit {
   @ViewChild('fileInput') private fileInput!: ElementRef<HTMLInputElement>;
 
   isDarkMode = false;
+  activeTab: AdminTab = 'documents';
 
   keyInput = '';
   authError = '';
@@ -118,6 +122,17 @@ export class AdminDocumentsComponent implements OnInit {
     this.page = 1;
     this.totalCount = 0;
     this.editingId = null;
+  }
+
+  selectTab(tab: AdminTab): void {
+    this.activeTab = tab;
+    this.editingId = null;
+  }
+
+  // La pestaña de preguntas recibió un 401: se vuelve a pedir la clave
+  onUnauthorized(): void {
+    this.handleAuthError({ status: 401 });
+    this.cdr.detectChanges();
   }
 
   onPageChange(page: number): void {

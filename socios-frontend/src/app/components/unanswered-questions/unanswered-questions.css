@@ -1,0 +1,135 @@
+.questions-section {
+  padding: 1.5rem 2.5rem 2rem;
+}
+
+.section-hint {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+  color: var(--color-texto-secundario);
+}
+
+.state-message {
+  padding: 3rem 0;
+  text-align: center;
+  color: var(--color-texto-secundario);
+  font-size: 1.4rem;
+}
+
+  .state-message.error {
+    color: #e5484d;
+  }
+
+.inline-error {
+  margin: 1rem 0 0;
+  font-size: 1.2rem;
+  color: #e5484d;
+}
+
+.questions-table {
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.2s ease;
+}
+
+  .questions-table.is-loading {
+    opacity: 0.5;
+  }
+
+.table-row {
+  display: grid;
+  grid-template-columns: 1fr 13rem 4rem;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.2rem 0.5rem;
+  border-bottom: 1px solid var(--color-bordes);
+  font-size: 1.3rem;
+  color: var(--color-texto-principal);
+}
+
+  .table-row:last-child {
+    border-bottom: none;
+  }
+
+.table-head {
+  color: var(--color-texto-secundario);
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.col-question {
+  overflow-wrap: anywhere;
+}
+
+.col-date {
+  color: var(--color-texto-secundario);
+  white-space: nowrap;
+}
+
+.col-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.icon-action {
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--color-texto-secundario);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+  .icon-action:hover {
+    background-color: var(--color-btn-hover-bg);
+    color: #e5484d;
+  }
+
+  .icon-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+.mini-spinner {
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  border: 2px solid var(--color-bordes);
+  border-top-color: var(--color-texto-secundario);
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* En celular la fecha pasa abajo de la pregunta */
+@media (max-width: 600px) {
+  .questions-section {
+    padding: 1rem 1.5rem 1.5rem;
+  }
+
+  .table-head {
+    display: none;
+  }
+
+  .table-row {
+    grid-template-columns: 1fr auto;
+    row-gap: 0.4rem;
+  }
+
+  .col-date {
+    grid-row: 2;
+    font-size: 1.15rem;
+  }
+
+  .col-actions {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+  }
+}

@@ -38,8 +38,8 @@
       <div class="header-left">
         <a routerLink="/" class="back-icon" title="Volver al chat" aria-label="Volver al chat">←</a>
         <div>
-          <h1>Documentos</h1>
-          <p class="subtitle">Base de conocimiento del asistente</p>
+          <h1>Panel de administración</h1>
+          <p class="subtitle">Asistente Virtual 4x</p>
         </div>
       </div>
 
@@ -59,6 +59,16 @@
       </div>
     </header>
 
+    <nav class="admin-tabs" role="tablist">
+      <button class="admin-tab" role="tab" type="button" [class.active]="activeTab === 'documents'"
+              [attr.aria-selected]="activeTab === 'documents'" (click)="selectTab('documents')">Documentos</button>
+      <button class="admin-tab" role="tab" type="button" [class.active]="activeTab === 'questions'"
+              [attr.aria-selected]="activeTab === 'questions'" (click)="selectTab('questions')">Preguntas sin respuesta</button>
+    </nav>
+
+    @if (activeTab === 'questions') {
+    <app-unanswered-questions (unauthorized)="onUnauthorized()"></app-unanswered-questions>
+    } @else {
     <section class="upload-section">
       <input type="file" #fileInput hidden accept=".pdf,.txt" (change)="onFileSelected($event)">
 
@@ -174,6 +184,7 @@
       </app-paginator>
       }
     </section>
+    }
 
   </div>
   }
