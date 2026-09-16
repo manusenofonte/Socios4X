@@ -1,6 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Socios.Api.Filters;
+using Socios.Api.Auth;
 using Socios.Application.DTOs;
 using Socios.Application.Interfaces;
 
@@ -8,7 +9,7 @@ namespace Socios.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[RequireAdminKey]
+[Authorize(Policy = AdminPolicies.Panel)]
 [EnableRateLimiting("AdminPolicy")]
 public class DocumentsController : ControllerBase
 {

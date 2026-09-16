@@ -12,6 +12,7 @@ public class ClubDbContext : DbContext
     public DbSet<FrequentlyQuestion> FrequentlyQuestions { get; set; }
     public DbSet<Document> Documents { get; set; }
     public DbSet<UnansweredQuestion> UnansweredQuestions { get; set; }
+    public DbSet<AdminUser> AdminUsers { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,6 +45,23 @@ public class ClubDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Question).HasMaxLength(UnansweredQuestion.MaxQuestionLength);
             entity.Property(e => e.CreatedAt).HasConversion(UtcConverter);
+        });
+
+        modelBuilder.Entity<AdminUser>(entity =>
+        {
+            entity.ToTable("AdminUsers");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Email).IsUnique();
+            entity.Property(e => e.Email).HasMaxLength(256);
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.Role).HasMaxLength(50);
+            entity.Property(e => e.PasswordResetTokenHash).HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).HasConversion(UtcConverter);
+            entity.Property(e => e.LastLoginAt).HasConversion(NullableUtcConverter);
+            entity.Property(e => e.LockoutEndsAt).HasConversion(NullableUtcConverter);
+            entity.Property(e => e.TemporaryPasswordExpiresAt).HasConversion(NullableUtcConverter);
+            entity.Property(e => e.PasswordResetTokenExpiresAt).HasConversion(NullableUtcConverter);
+            entity.Ignore(e => e.IsSuperAdmin);
         });
     }
 

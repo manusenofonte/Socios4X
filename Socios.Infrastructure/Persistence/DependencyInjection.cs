@@ -6,7 +6,9 @@ using Microsoft.Extensions.Logging;
 using Qdrant.Client;
 using Socios.Application.Interfaces;
 using Socios.Infrastructure.Persistence;
+using Socios.Infrastructure.Email;
 using Socios.Infrastructure.Repositories;
+using Socios.Infrastructure.Security;
 
 namespace Socios.Infrastructure;
 
@@ -62,6 +64,11 @@ public static class DependencyInjection
         services.AddScoped<IFAQRepository, FAQRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
         services.AddScoped<IUnansweredQuestionRepository, UnansweredQuestionRepository>();
+
+        // Usuarios del panel de administración
+        services.AddScoped<IAdminUserRepository, AdminUserRepository>();
+        services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
+        services.AddSingleton<IEmailSender, SmtpEmailSender>();
 
         var qdrantEndpoint = configuration["AI:Qdrant:Endpoint"];
         if (string.IsNullOrWhiteSpace(qdrantEndpoint))

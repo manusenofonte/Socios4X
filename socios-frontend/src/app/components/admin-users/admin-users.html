@@ -1,0 +1,72 @@
+<section class="users-section">
+  <p class="section-hint">
+    Personas que pueden ingresar a este panel. Al crear un administrador o blanquear su contraseña se genera
+    una contraseña temporal (vence en 48 horas) que tiene que cambiar al ingresar.
+  </p>
+
+  <form class="create-form" (ngSubmit)="create()">
+    <input type="email" class="field" placeholder="Email" name="newEmail" [(ngModel)]="newEmail" [disabled]="creating">
+    <input type="text" class="field" placeholder="Nombre (opcional)" name="newName" [(ngModel)]="newName" [disabled]="creating">
+    <button type="submit" class="primary" [disabled]="creating || !newEmail.trim()">
+      {{ creating ? 'Creando...' : 'Crear administrador' }}
+    </button>
+  </form>
+
+  @if (issued) {
+  <div class="issued" role="status">
+    <p>
+      Contraseña temporal para <strong>{{ issued.user.email }}</strong>. Pasásela por un canal privado:
+      <strong>no se va a volver a mostrar</strong>.
+    </p>
+    <div class="issued-row">
+      <code class="issued-password">{{ issued.temporaryPassword }}</code>
+      <button type="button" class="secondary" (click)="copyPassword()">{{ copied ? 'Copiada' : 'Copiar' }}</button>
+      <button type="button" class="secondary" (click)="dismissIssued()">Listo</button>
+    </div>
+  </div>
+  }
+
+  @if (actionError) {
+  <p class="inline-error">{{ actionError }}</p>
+  }
+
+  @if (loading && users.length === 0) {
+  <p class="state-message">Cargando administradores...</p>
+  }
+
+  @if (!loading && loadError) {
+  <p class="state-message error">{{ loadError }}</p>
+  }
+
+  @if (users.length > 0) {
+  <div class="users-list" [class.is-loading]="loading">
+    @for (u of users; track u.id) {
+    <div class="user-row" [class.inactive]="!u.isActive">
+      <div class="user-info">
+        <span class="user-name">{{ u.name }}</span>
+        <span class="user-email">{{ u.email }}</span>
+        <span class="user-meta">
+          @if (u.role === 'SuperAdmin') { <span class="badge principal">Principal</span> }
+          @if (!u.isActive) { <span class="badge off">Desactivado</span> }
+          @else if (u.mustChangePassword) { <span class="badge pending">Contraseña temporal</span> }
+          Último ingreso: {{ u.lastLoginAt ? (u.lastLoginAt | date:'dd/MM/yyyy HH:mm') : 'nunca' }}
+        </span>
+      </div>
+
+      @if (u.id !== currentUserId) {
+      <div class="user-actions">
+        <button type="button" class="secondary" (click)="resetPassword(u)" [disabled]="busyId !== null">
+          Blanquear contraseña
+        </button>
+        @if (u.role !== 'SuperAdmin') {
+        <button type="button" class="secondary" [class.danger]="u.isActive" (click)="toggleActive(u)" [disabled]="busyId !== null">
+          {{ u.isActive ? 'Desactivar' : 'Reactivar' }}
+        </button>
+        }
+      </div>
+      }
+    </div>
+    }
+  </div>
+  }
+</section>

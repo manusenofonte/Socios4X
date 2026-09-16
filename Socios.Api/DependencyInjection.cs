@@ -12,6 +12,11 @@ public static class DependencyInjection
         services.AddScoped<IVirtualAssistantService, VirtualAssistantService>();
         services.AddScoped<IDocumentService, DocumentService>();
 
+        // Usuarios y login del panel de administración
+        services.AddSingleton(TimeProvider.System);
+        services.AddScoped<AdminAuthService>();
+        services.AddScoped<AdminUserManagementService>();
+
         return services;
     }
 }

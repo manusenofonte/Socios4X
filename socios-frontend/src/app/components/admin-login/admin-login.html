@@ -1,0 +1,53 @@
+<div class="auth-card">
+  <div class="auth-header">
+    <span class="auth-logo">4x</span>
+    <h1>Panel de administración</h1>
+    @if (mode === 'login') {
+    <p>Ingresá con tu email y contraseña.</p>
+    } @else {
+    <p>Te enviamos un link para elegir una contraseña nueva.</p>
+    }
+  </div>
+
+  @if (mode === 'login') {
+  <form class="auth-form" (ngSubmit)="submitLogin()">
+    @if (notice && !error) {
+    <p class="auth-error">{{ notice }}</p>
+    }
+
+    <input type="email" class="auth-input" placeholder="Email" name="email" autocomplete="username"
+           [(ngModel)]="email" [disabled]="submitting" autofocus>
+    <input type="password" class="auth-input" placeholder="Contraseña" name="password" autocomplete="current-password"
+           [(ngModel)]="password" [disabled]="submitting">
+
+    @if (error) {
+    <p class="auth-error">{{ error }}</p>
+    }
+
+    <button type="submit" class="auth-submit" [disabled]="submitting || !email.trim() || !password">
+      {{ submitting ? 'Ingresando...' : 'Ingresar' }}
+    </button>
+    <button type="button" class="auth-link" (click)="showForgot()">Olvidé mi contraseña</button>
+  </form>
+  } @else {
+  @if (forgotMessage) {
+  <p class="auth-success">{{ forgotMessage }}</p>
+  } @else {
+  <form class="auth-form" (ngSubmit)="submitForgot()">
+    <input type="email" class="auth-input" placeholder="Tu email" name="forgotEmail" autocomplete="username"
+           [(ngModel)]="email" [disabled]="submitting">
+
+    @if (error) {
+    <p class="auth-error">{{ error }}</p>
+    }
+
+    <button type="submit" class="auth-submit" [disabled]="submitting || !email.trim()">
+      {{ submitting ? 'Enviando...' : 'Enviar link' }}
+    </button>
+  </form>
+  }
+  <button type="button" class="auth-link" (click)="showLogin()">Volver al ingreso</button>
+  }
+
+  <a routerLink="/" class="back-link">← Volver al chat</a>
+</div>

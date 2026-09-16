@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Socios.Api.Auth;
 using Socios.Application;
 using Socios.Application.Services;
 using Socios.Infrastructure;
@@ -69,6 +70,18 @@ builder.Services.AddRateLimiter(options =>
                 PermitLimit = 60,
                 QueueLimit = 0
             }));
+
+    // Login y recuperación de contraseña: pocos intentos por IP para frenar ataques de
+    // fuerza bruta (además del bloqueo de la cuenta tras varios intentos fallidos).
+    options.AddPolicy("AuthPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 10,
+                QueueLimit = 0
+            }));
 });
 
 // ==============================
@@ -92,6 +105,11 @@ builder.Services.AddCors(options =>
 // ==============================
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
+
+// ==============================
+// LOGIN DEL PANEL DE ADMINISTRACIÓN
+// ==============================
+builder.Services.AddAdminAuth(builder.Configuration, builder.Environment);
 
 // ==============================
 // CONFIGURACIÓN IA (OpenAI)
@@ -125,6 +143,13 @@ builder.Services.Configure<AssistantOptions>(options =>
 // ==============================
 var app = builder.Build();
 
+// Comando de consola (crear el administrador principal) en lugar de levantar la API
+if (args.Length > 0 && args[0] == AdminCommands.CreateSuperAdmin)
+{
+    Environment.ExitCode = await AdminCommands.RunAsync(app.Services, args);
+    return;
+}
+
 app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment())
@@ -144,6 +169,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors(FrontendCorsPolicy);
 app.UseRateLimiter();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

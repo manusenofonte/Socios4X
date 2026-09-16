@@ -7,13 +7,19 @@ import { AdminDocumentsService, AdminDocument } from '../../services/admin-docum
 import { PagedResult } from '../../models/paged-result';
 import { PaginatorComponent } from '../paginator/paginator';
 import { UnansweredQuestionsComponent } from '../unanswered-questions/unanswered-questions';
+import { AdminLoginComponent } from '../admin-login/admin-login';
+import { ChangePasswordComponent } from '../change-password/change-password';
+import { AdminUsersComponent } from '../admin-users/admin-users';
 
-type AdminTab = 'documents' | 'questions';
+type AdminTab = 'documents' | 'questions' | 'users';
 
 @Component({
   selector: 'app-admin-documents',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, PaginatorComponent, UnansweredQuestionsComponent],
+  imports: [
+    CommonModule, FormsModule, RouterLink, PaginatorComponent, UnansweredQuestionsComponent,
+    AdminLoginComponent, ChangePasswordComponent, AdminUsersComponent
+  ],
   templateUrl: './admin-documents.html',
   styleUrl: './admin-documents.css'
 })
@@ -24,10 +30,11 @@ export class AdminDocumentsComponent implements OnInit {
 
   isDarkMode = false;
   activeTab: AdminTab = 'documents';
+  showChangePassword = false;
+  passwordChangedNotice = false;
 
-  keyInput = '';
+  // Motivo por el que se volvió a la pantalla de ingreso (p. ej. sesión vencida)
   authError = '';
-  verifying = false;
 
   documents: AdminDocument[] = [];
   loading = false;
@@ -60,13 +67,26 @@ export class AdminDocumentsComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadTheme();
-    if (this.isAuthenticated) {
+    if (this.isAuthenticated && !this.mustChangePassword) {
       this.fetchDocuments();
     }
   }
 
   get isAuthenticated(): boolean {
     return this.auth.isAuthenticated();
+  }
+
+  // Entró con contraseña temporal: tiene que elegir la suya antes de usar el panel
+  get mustChangePassword(): boolean {
+    return this.auth.mustChangePassword();
+  }
+
+  get isSuperAdmin(): boolean {
+    return this.auth.isSuperAdmin();
+  }
+
+  get userName(): string {
+    return this.auth.user()?.name ?? '';
   }
 
   private loadTheme(): void {
@@ -90,46 +110,53 @@ export class AdminDocumentsComponent implements OnInit {
     this.applyTheme();
   }
 
-  submitKey(): void {
-    const key = this.keyInput.trim();
-    if (!key || this.verifying) return;
-
-    this.verifying = true;
+  onLoggedIn(): void {
     this.authError = '';
-    this.auth.setKey(key);
+    this.activeTab = 'documents';
+    this.showChangePassword = false;
+    if (!this.mustChangePassword) {
+      this.fetchDocuments(1);
+    }
+    this.cdr.detectChanges();
+  }
 
-    this.documentsService.list(1, this.pageSize).subscribe({
-      next: (result) => {
-        this.applyPage(result);
-        this.verifying = false;
-        this.keyInput = '';
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.verifying = false;
-        this.auth.clear();
-        this.authError = err.status === 401
-          ? 'Clave de administrador incorrecta.'
-          : 'No se pudo conectar con el servidor.';
-        this.cdr.detectChanges();
-      }
-    });
+  // Cambió la contraseña (obligatoria o desde "Cambiar contraseña")
+  onPasswordChanged(): void {
+    const wasForced = !this.showChangePassword;
+    this.showChangePassword = false;
+    this.passwordChangedNotice = true;
+    if (wasForced) {
+      this.fetchDocuments(1);
+    }
+    this.cdr.detectChanges();
+  }
+
+  openChangePassword(): void {
+    this.showChangePassword = true;
+    this.passwordChangedNotice = false;
+    this.editingId = null;
   }
 
   logout(): void {
     this.auth.clear();
+    this.authError = '';
     this.documents = [];
     this.page = 1;
     this.totalCount = 0;
     this.editingId = null;
+    this.activeTab = 'documents';
+    this.showChangePassword = false;
+    this.passwordChangedNotice = false;
   }
 
   selectTab(tab: AdminTab): void {
     this.activeTab = tab;
     this.editingId = null;
+    this.showChangePassword = false;
+    this.passwordChangedNotice = false;
   }
 
-  // La pestaña de preguntas recibió un 401: se vuelve a pedir la clave
+  // Una pestaña hija recibió un 401: se vuelve a la pantalla de ingreso
   onUnauthorized(): void {
     this.handleAuthError({ status: 401 });
     this.cdr.detectChanges();
@@ -293,7 +320,7 @@ export class AdminDocumentsComponent implements OnInit {
   private handleAuthError(err: { status?: number }): boolean {
     if (err.status === 401) {
       this.auth.clear();
-      this.authError = 'La clave dejó de ser válida.';
+      this.authError = 'Tu sesión venció o ya no es válida. Volvé a ingresar.';
       return true;
     }
     return false;

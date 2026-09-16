@@ -77,10 +77,33 @@ ng serve
 
 Está containerizado con Docker. Empecé buscando hosting compartido y me encontré con que los proveedores que miré solo soportaban .NET Framework 4.x, y el proyecto usa .NET 10. En lugar de bajar la versión del proyecto para que entrara, lo metí en un contenedor con su propio runtime.
 
+## Panel de administración (`/admin`)
+
+Cada administrador entra con email y contraseña. Hay un **administrador principal** que da de alta a los demás desde la pestaña "Administradores".
+
+Configuración del backend (variables de entorno en Render):
+
+| Variable | Obligatoria | Para qué |
+|---|---|---|
+| `Auth__JwtKey` | Sí | Firma las sesiones. Una clave aleatoria de 32 caracteres o más; si cambia, se cierran todas las sesiones. |
+| `Auth__FrontendBaseUrl` | No | URL del frontend para el link de "Olvidé mi contraseña" (por defecto la de Netlify). |
+| `Email__Smtp__Host`, `Port`, `User`, `Password`, `From` | No | Cuenta de correo para "Olvidé mi contraseña". Sin esto, el link no se envía y hay que pedirle al administrador principal que blanquee la contraseña. |
+
+Primera puesta en marcha:
+
+1. Ejecutar `sql/create-admin-users-table.sql` en la base.
+2. Crear el administrador principal (imprime una contraseña temporal que vence en 48 horas):
+
+   ```bash
+   dotnet Socios.Api.dll create-superadmin email@ejemplo.com "Nombre"
+   ```
+
+   Con el mismo comando se le genera una contraseña temporal nueva si se olvida la suya.
+3. Al entrar a `/admin` con la contraseña temporal, el sistema le pide elegir la suya.
+
 ## Pendientes
 
-- Registrar las consultas que no encuentran contexto, para detectar qué documentación falta cargar
-- Tests sobre los casos de uso de `Application`
+- Tests sobre los repositorios de `Infrastructure`
 
 ## Autoría
 
