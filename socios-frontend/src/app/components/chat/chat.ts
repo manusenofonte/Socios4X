@@ -2,7 +2,6 @@ import { Component, Inject, OnInit, Renderer2, ChangeDetectorRef, ViewChild, Ele
 import { DOCUMENT, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AssistantService, FaqSuggestion } from '../../services/assistant';
-import { DocumentUploadService } from '../../services/document-upload';
 import { MarkdownPipe } from '../../pipes/markdown';
 
 export interface ChatMessage {
@@ -21,7 +20,6 @@ export class ChatComponent implements OnInit {
   private static readonly THEME_STORAGE_KEY = 'socios-theme';
 
   @ViewChild('chatScroll') private chatScrollContainer!: ElementRef;
-  @ViewChild('fileInput') private fileInput!: ElementRef<HTMLInputElement>;
 
   private readonly welcomeMessage: ChatMessage = {
     text: 'Hola, soy asistente virtual. ¿En qué puedo ayudarte hoy?',
@@ -31,7 +29,6 @@ export class ChatComponent implements OnInit {
   isDarkMode = false;
   newMessage: string = '';
   isTyping: boolean = false;
-  isUploading: boolean = false;
   copiedIndex: number | null = null;
   suggestions: FaqSuggestion[] = [];
 
@@ -41,8 +38,7 @@ export class ChatComponent implements OnInit {
     @Inject(DOCUMENT) private document: Document,
     private renderer: Renderer2,
     private cdr: ChangeDetectorRef,
-    private assistantService: AssistantService,
-    private documentUploadService: DocumentUploadService
+    private assistantService: AssistantService
   ) { }
 
   ngOnInit(): void {
@@ -132,46 +128,5 @@ export class ChatComponent implements OnInit {
   useSuggestion(question: string) {
     this.newMessage = question;
     this.sendMessage();
-  }
-
-  triggerFileInput() {
-    if (this.isUploading) return;
-    this.fileInput.nativeElement.click();
-  }
-
-  onFileSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
-
-    const adminKey = window.prompt('Clave de administrador para cargar documentos:');
-    if (!adminKey) return;
-
-    this.isUploading = true;
-    this.messages.push({ text: `Adjunté "${file.name}"`, isUser: true });
-    this.cdr.detectChanges();
-    this.scrollToBottom();
-
-    this.documentUploadService.upload(file, adminKey).subscribe({
-      next: (response) => {
-        this.isUploading = false;
-        this.messages.push({
-          text: `Listo, sumé "${file.name}" a mi base de conocimiento (${response.chunksStored} fragmentos).`,
-          isUser: false
-        });
-        this.cdr.detectChanges();
-        this.scrollToBottom();
-      },
-      error: (err) => {
-        this.isUploading = false;
-        const text = err.status === 401
-          ? 'Clave de administrador incorrecta.'
-          : `No pude procesar "${file.name}". Asegurate de que sea un PDF o un .txt.`;
-        this.messages.push({ text, isUser: false });
-        this.cdr.detectChanges();
-        this.scrollToBottom();
-      }
-    });
   }
 }

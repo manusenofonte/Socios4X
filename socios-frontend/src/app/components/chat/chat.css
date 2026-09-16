@@ -258,33 +258,6 @@
     border-color: transparent;
   }
 
-/* --- Botón adjuntar archivo --- */
-.attach-button {
-  background: none;
-  border: none;
-  color: var(--color-texto-secundario);
-  cursor: pointer;
-  padding: 1rem;
-  width: 4.5rem;
-  height: 4.5rem;
-  flex-shrink: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 50%;
-  transition: all 0.2s ease;
-}
-
-  .attach-button:hover {
-    background-color: var(--color-btn-hover-bg);
-    color: var(--color-texto-principal);
-  }
-
-  .attach-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
 /* --- Input Area --- */
 .chat-input-row {
   padding: 1.5rem 2.5rem 2.5rem;

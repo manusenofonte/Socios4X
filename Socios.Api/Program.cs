@@ -98,6 +98,9 @@ builder.Services.AddKernel()
         apiKey: openAiApiKey
     );
 
+
+    
+
 // ==============================
 // BUILD APP
 // ==============================
